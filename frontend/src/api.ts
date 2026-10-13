@@ -224,7 +224,7 @@ api.interceptors.response.use(
       }
     }
 
-    // 7. Loans
+    // 7. Loans List (All or My Loans)
     if (url.includes('/loans') && method === 'get') {
       return {
         status: 200,
@@ -233,6 +233,50 @@ api.interceptors.response.use(
         config: error.config,
         data: MOCK_LOANS,
       };
+    }
+
+    // 7b. Loan Renewal (+7 Days)
+    const renewMatch = url.match(/\/loans\/(\d+)\/renew/);
+    if (renewMatch && method === 'post') {
+      const loanId = Number(renewMatch[1]);
+      const targetLoan = MOCK_LOANS.find((l) => l.id === loanId);
+
+      if (targetLoan) {
+        if (targetLoan.is_overdue === 1) {
+          return Promise.reject({
+            response: {
+              status: 400,
+              data: { error: 'Item is already overdue and cannot be renewed. Please return it to the desk.' },
+            },
+          });
+        }
+
+        if (targetLoan.renewal_count >= 2) {
+          return Promise.reject({
+            response: {
+              status: 400,
+              data: { error: 'Maximum renewal limit (2 times) reached for this loan.' },
+            },
+          });
+        }
+
+        const newDueDate = new Date(targetLoan.due_at);
+        newDueDate.setDate(newDueDate.getDate() + 7);
+        targetLoan.due_at = newDueDate.toISOString();
+        targetLoan.renewal_count = (targetLoan.renewal_count || 0) + 1;
+
+        return {
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: error.config,
+          data: {
+            message: 'Loan successfully renewed for 7 additional days.',
+            newDueDate: targetLoan.due_at,
+            renewalCount: targetLoan.renewal_count,
+          },
+        };
+      }
     }
 
     // 8. Holds

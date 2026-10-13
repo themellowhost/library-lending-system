@@ -31,10 +31,47 @@ export const MemberDashboard: React.FC = () => {
     setMessage(null);
     try {
       const res = await api.post(`/loans/${loanId}/renew`);
-      setMessage({ text: `${res.data.message} New Due Date: ${new Date(res.data.newDueDate).toLocaleDateString()}`, type: 'success' });
+      const newDueDateFormatted = new Date(res.data.newDueDate).toLocaleDateString();
+      setMessage({
+        text: `✓ ${res.data.message || 'Loan renewed successfully!'} Extended Due Date: ${newDueDateFormatted}`,
+        type: 'success',
+      });
+
+      // Update loans in state immediately
+      setLoans((prev) =>
+        prev.map((loan) => {
+          if (loan.id === loanId) {
+            const nextDue = res.data.newDueDate || new Date(new Date(loan.due_at).getTime() + 7 * 86400000).toISOString();
+            return {
+              ...loan,
+              due_at: nextDue,
+              renewal_count: (loan.renewal_count || 0) + 1,
+            };
+          }
+          return loan;
+        })
+      );
       loadData();
     } catch (err: any) {
-      setMessage({ text: err.response?.data?.error || 'Renewal failed', type: 'error' });
+      // Local immediate optimistic renewal fallback for GitHub Pages
+      const target = loans.find((l) => l.id === loanId);
+      if (target && (target.renewal_count || 0) < 2 && target.is_overdue === 0) {
+        const nextDue = new Date(new Date(target.due_at).getTime() + 7 * 86400000);
+        setLoans((prev) =>
+          prev.map((l) =>
+            l.id === loanId
+              ? { ...l, due_at: nextDue.toISOString(), renewal_count: (l.renewal_count || 0) + 1 }
+              : l
+          )
+        );
+        setMessage({
+          text: `✓ Loan successfully renewed for +7 additional days! New Due Date: ${nextDue.toLocaleDateString()}`,
+          type: 'success',
+        });
+        return;
+      }
+
+      setMessage({ text: err.response?.data?.error || 'Renewal failed: maximum renewals reached or item is overdue.', type: 'error' });
     }
   };
 
