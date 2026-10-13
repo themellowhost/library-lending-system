@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { Book, User } from '../types';
-import { Search, Sparkles, Plus, ArrowRight, Check, Clock } from 'lucide-react';
+import { Search, Sparkles, Plus, ArrowRight, Check, Clock, Globe } from 'lucide-react';
 
 interface CatalogViewProps {
   user: User | null;
   onSelectBook: (bookId: number) => void;
   onOpenAddBook?: () => void;
+  onNavigateToOpenLibrary?: () => void;
 }
 
-export const CatalogView: React.FC<CatalogViewProps> = ({ user, onSelectBook, onOpenAddBook }) => {
+export const CatalogView: React.FC<CatalogViewProps> = ({ user, onSelectBook, onOpenAddBook, onNavigateToOpenLibrary }) => {
   const [books, setBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [search, setSearch] = useState('');
@@ -128,9 +129,22 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ user, onSelectBook, on
             Querying relational catalog…
           </div>
         ) : books.length === 0 ? (
-          <div className="p-16 rounded-[24px] apple-card text-center">
-            <h3 className="text-lg font-semibold text-white">No results found</h3>
-            <p className="text-xs text-[#86868b] mt-1">Try another search query or clear filter</p>
+          <div className="p-16 rounded-[24px] apple-card text-center space-y-3">
+            <h3 className="text-lg font-semibold text-white">No copies found in local physical catalog</h3>
+            <p className="text-xs text-[#86868b] max-w-md mx-auto">
+              "{search}" isn't shelved in the physical stacks, but it may be available among millions of public digital editions in the Open E-Library.
+            </p>
+            {onNavigateToOpenLibrary && (
+              <div className="pt-2">
+                <button
+                  onClick={onNavigateToOpenLibrary}
+                  className="apple-pill-btn px-5 py-2.5 text-xs font-semibold inline-flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  Search "{search}" in Open E-Library
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

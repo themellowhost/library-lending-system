@@ -150,3 +150,4 @@ export const BookReaderView: React.FC<BookReaderViewProps> = ({
     </div>
   );
 };
+

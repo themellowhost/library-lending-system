@@ -292,6 +292,7 @@ export function App() {
             user={currentUser}
             onSelectBook={(id) => setSelectedBookId(id)}
             onOpenAddBook={() => setShowAddBookModal(true)}
+            onNavigateToOpenLibrary={() => setActiveTab('open-archive')}
           />
         ) : activeTab === 'open-archive' ? (
           <OpenCatalogBrowser
