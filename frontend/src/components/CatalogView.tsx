@@ -140,7 +140,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ user, onSelectBook, on
                 <div
                   key={book.id}
                   onClick={() => onSelectBook(book.id)}
-                  className="apple-card p-7 flex flex-col justify-between group cursor-pointer relative overflow-hidden"
+                  className="apple-card p-6 flex flex-col justify-between group cursor-pointer relative overflow-hidden"
                 >
                   {/* Subtle top glow on card hover */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#0071e3]/40 to-transparent opacity-0 group-hover:opacity-100 transition duration-500" />
@@ -150,15 +150,37 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ user, onSelectBook, on
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[#86868b]">
                         {book.category_name || 'Literature'}
                       </span>
-                      <span className="text-[11px] font-mono text-[#86868b]">{book.isbn}</span>
+                      {book.reader_url || book.pdf_url ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-[#2997ff] border border-blue-500/20">
+                          E-Reader Ready
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-mono text-[#86868b]">{book.isbn}</span>
+                      )}
                     </div>
 
-                    <h3 className="text-lg font-bold text-white group-hover:text-[#2997ff] transition leading-snug">
-                      {book.title}
-                    </h3>
-                    <p className="text-xs text-[#86868b] mt-1.5 line-clamp-1">
-                      By <span className="text-white/80 font-medium">{book.authors || 'Unknown'}</span>
-                    </p>
+                    <div className="flex gap-4">
+                      {book.cover_image_url && (
+                        <div className="w-16 h-22 rounded-lg overflow-hidden bg-[#2c2c2e] shrink-0 border border-white/10">
+                          <img
+                            src={book.cover_image_url}
+                            alt={book.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-bold text-white group-hover:text-[#2997ff] transition leading-snug line-clamp-2">
+                          {book.title}
+                        </h3>
+                        <p className="text-xs text-[#86868b] mt-1.5 line-clamp-1">
+                          By <span className="text-white/80 font-medium">{book.authors || 'Unknown'}</span>
+                        </p>
+                      </div>
+                    </div>
 
                     {book.description && (
                       <p className="text-xs text-[#86868b] mt-4 line-clamp-2 leading-relaxed">

@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { Book, User } from '../types';
-import { ArrowLeft, Bookmark, Plus, Barcode, MapPin, Check, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Bookmark, Plus, Barcode, MapPin, Check, Clock, AlertCircle, BookOpen, Download } from 'lucide-react';
 
 interface BookDetailModalProps {
   bookId: number;
   user: User | null;
   onBack: () => void;
   onRefresh: () => void;
+  onOpenReader?: (book: Book) => void;
 }
 
-export const BookDetailModal: React.FC<BookDetailModalProps> = ({ bookId, user, onBack, onRefresh }) => {
+export const BookDetailModal: React.FC<BookDetailModalProps> = ({ bookId, user, onBack, onRefresh, onOpenReader }) => {
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -124,10 +125,32 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({ bookId, user, 
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+            {(book.reader_url || book.pdf_url) && (
+              <button
+                onClick={() => onOpenReader && onOpenReader(book)}
+                className="apple-pill-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Read Online Now
+              </button>
+            )}
+
+            {book.pdf_url && (
+              <a
+                href={book.pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="apple-secondary-btn px-5 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download PDF
+              </a>
+            )}
+
             {user?.role === 'member' && (
               <button
                 onClick={handlePlaceHold}
-                className="apple-pill-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
+                className="apple-secondary-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Bookmark className="w-3.5 h-3.5" />
                 Place Hold

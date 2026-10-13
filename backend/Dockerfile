@@ -18,3 +18,4 @@ ENV PORT=5001
 ENV NODE_ENV=production
 
 CMD ["npx", "tsx", "src/index.ts"]
+

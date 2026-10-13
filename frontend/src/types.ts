@@ -20,12 +20,29 @@ export interface Book {
   category_id?: number;
   category_name?: string;
   authors: string;
+  cover_image_url?: string | null;
+  pdf_url?: string | null;
+  reader_url?: string | null;
+  ia_identifier?: string | null;
   total_copies: number;
   available_copies: number;
   on_loan_copies: number;
   on_hold_copies: number;
   copies?: Copy[];
   activeHoldsCount?: number;
+}
+
+export interface OpenLibraryDoc {
+  key: string;
+  title: string;
+  author_name: string[];
+  first_publish_year?: number;
+  cover_i?: number;
+  cover_image_url?: string | null;
+  ia_identifier?: string | null;
+  reader_url?: string | null;
+  pdf_url?: string | null;
+  edition_count: number;
 }
 
 export interface Copy {

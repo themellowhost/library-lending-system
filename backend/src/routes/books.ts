@@ -18,6 +18,10 @@ router.get('/', (req, res) => {
       b.publisher,
       b.published_year,
       b.description,
+      b.cover_image_url,
+      b.pdf_url,
+      b.reader_url,
+      b.ia_identifier,
       c.id as category_id,
       c.name as category_name,
       GROUP_CONCAT(DISTINCT a.name) as authors,
@@ -70,6 +74,44 @@ router.get('/', (req, res) => {
   res.json(books);
 });
 
+// GET /api/books/open-search - Live search Open Library public domain archive
+router.get('/open-search', async (req, res) => {
+  const query = (req.query.q as string || '').trim();
+  if (!query) {
+    res.json({ docs: [] });
+    return;
+  }
+
+  try {
+    const encoded = encodeURIComponent(query);
+    const response = await fetch(`https://openlibrary.org/search.json?q=${encoded}&has_fulltext=true&limit=12`);
+    if (!response.ok) {
+      throw new Error(`Open Library API responded with ${response.status}`);
+    }
+    const data = await response.json() as any;
+
+    const formatted = (data.docs || []).map((doc: any) => {
+      const ia = doc.ia && doc.ia.length > 0 ? doc.ia[0] : null;
+      return {
+        key: doc.key,
+        title: doc.title,
+        author_name: doc.author_name || ['Unknown Author'],
+        first_publish_year: doc.first_publish_year || null,
+        cover_i: doc.cover_i,
+        cover_image_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+        ia_identifier: ia,
+        reader_url: ia ? `https://archive.org/embed/${ia}` : null,
+        pdf_url: ia ? `https://archive.org/download/${ia}/${ia}.pdf` : null,
+        edition_count: doc.edition_count || 1
+      };
+    });
+
+    res.json({ docs: formatted });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to search Open Library catalog', details: err.message });
+  }
+});
+
 // GET /api/books/:id - Detailed book view with individual copy statuses
 router.get('/:id', (req, res) => {
   const bookId = Number(req.params.id);
@@ -81,6 +123,10 @@ router.get('/:id', (req, res) => {
       b.publisher,
       b.published_year,
       b.description,
+      b.cover_image_url,
+      b.pdf_url,
+      b.reader_url,
+      b.ia_identifier,
       c.id as category_id,
       c.name as category_name,
       GROUP_CONCAT(DISTINCT a.name) as authors

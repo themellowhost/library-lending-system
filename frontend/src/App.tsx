@@ -8,6 +8,9 @@ import { MemberManagement } from './components/MemberManagement';
 import { ReportsView } from './components/ReportsView';
 import { LoginModal } from './components/LoginModal';
 import { AddBookModal } from './components/AddBookModal';
+import { OpenCatalogBrowser } from './components/OpenCatalogBrowser';
+import { BookReaderView } from './components/BookReaderView';
+import { OpenLibraryDoc, Book } from './types';
 
 import {
   Apple,
@@ -18,12 +21,20 @@ import {
   Bookmark,
   LogIn,
   LogOut,
+  Globe,
 } from 'lucide-react';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'catalog' | 'circulation' | 'my-account' | 'members' | 'reports'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'open-archive' | 'circulation' | 'my-account' | 'members' | 'reports'>('catalog');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [activeReadingBook, setActiveReadingBook] = useState<{
+    title: string;
+    authors: string;
+    readerUrl?: string | null;
+    pdfUrl?: string | null;
+    iaIdentifier?: string | null;
+  } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAddBookModal, setShowAddBookModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -74,12 +85,27 @@ export function App() {
               onClick={() => {
                 setActiveTab('catalog');
                 setSelectedBookId(null);
+                setActiveReadingBook(null);
               }}
               className={`hover:text-white transition cursor-pointer ${
-                activeTab === 'catalog' ? 'text-white font-semibold' : ''
+                activeTab === 'catalog' && !activeReadingBook ? 'text-white font-semibold' : ''
               }`}
             >
               Catalog
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('open-archive');
+                setSelectedBookId(null);
+                setActiveReadingBook(null);
+              }}
+              className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'open-archive' && !activeReadingBook ? 'text-white font-semibold' : ''
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-[#2997ff]" />
+              <span>Open E-Library</span>
             </button>
 
             {currentUser?.role === 'member' && (
@@ -172,10 +198,21 @@ export function App() {
             onClick={() => {
               setActiveTab('catalog');
               setSelectedBookId(null);
+              setActiveReadingBook(null);
             }}
-            className={`whitespace-nowrap ${activeTab === 'catalog' ? 'text-white font-bold' : ''}`}
+            className={`whitespace-nowrap ${activeTab === 'catalog' && !activeReadingBook ? 'text-white font-bold' : ''}`}
           >
             Catalog
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('open-archive');
+              setSelectedBookId(null);
+              setActiveReadingBook(null);
+            }}
+            className={`whitespace-nowrap ${activeTab === 'open-archive' && !activeReadingBook ? 'text-white font-bold' : ''}`}
+          >
+            Open E-Library
           </button>
           {currentUser?.role === 'member' && (
             <button
@@ -224,12 +261,30 @@ export function App() {
 
       {/* Main Body */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex-1 w-full">
-        {selectedBookId !== null ? (
+        {activeReadingBook ? (
+          <BookReaderView
+            title={activeReadingBook.title}
+            authors={activeReadingBook.authors}
+            readerUrl={activeReadingBook.readerUrl}
+            pdfUrl={activeReadingBook.pdfUrl}
+            iaIdentifier={activeReadingBook.iaIdentifier}
+            onBack={() => setActiveReadingBook(null)}
+          />
+        ) : selectedBookId !== null ? (
           <BookDetailModal
             bookId={selectedBookId}
             user={currentUser}
             onBack={() => setSelectedBookId(null)}
             onRefresh={triggerRefresh}
+            onOpenReader={(b) => {
+              setActiveReadingBook({
+                title: b.title,
+                authors: b.authors,
+                readerUrl: b.reader_url,
+                pdfUrl: b.pdf_url,
+                iaIdentifier: b.ia_identifier,
+              });
+            }}
           />
         ) : activeTab === 'catalog' ? (
           <CatalogView
@@ -237,6 +292,18 @@ export function App() {
             user={currentUser}
             onSelectBook={(id) => setSelectedBookId(id)}
             onOpenAddBook={() => setShowAddBookModal(true)}
+          />
+        ) : activeTab === 'open-archive' ? (
+          <OpenCatalogBrowser
+            onReadOnline={(doc) => {
+              setActiveReadingBook({
+                title: doc.title,
+                authors: doc.author_name.join(', '),
+                readerUrl: doc.reader_url,
+                pdfUrl: doc.pdf_url,
+                iaIdentifier: doc.ia_identifier,
+              });
+            }}
           />
         ) : activeTab === 'circulation' ? (
           <CirculationDesk />

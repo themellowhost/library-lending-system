@@ -48,7 +48,7 @@ export function initDatabase() {
     name TEXT UNIQUE NOT NULL
   );
 
-  -- Books (Catalog metadata)
+  -- Books (Catalog metadata with optional reader & open access links)
   CREATE TABLE IF NOT EXISTS books (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     isbn TEXT UNIQUE NOT NULL,
@@ -57,6 +57,10 @@ export function initDatabase() {
     category_id INTEGER,
     published_year INTEGER,
     description TEXT,
+    cover_image_url TEXT,
+    pdf_url TEXT,
+    reader_url TEXT,
+    ia_identifier TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
   );
@@ -135,11 +139,21 @@ export function initDatabase() {
 
   db.exec(schema);
 
-  // Alter loans table if renewal_count column doesn't exist yet
-  try {
-    db.prepare('ALTER TABLE loans ADD COLUMN renewal_count INTEGER DEFAULT 0').run();
-  } catch (e) {
-    // Column already exists
+  // Safe ALTER TABLE additions for existing database instances
+  const columnsToAdd = [
+    { table: 'loans', col: 'renewal_count INTEGER DEFAULT 0' },
+    { table: 'books', col: 'cover_image_url TEXT' },
+    { table: 'books', col: 'pdf_url TEXT' },
+    { table: 'books', col: 'reader_url TEXT' },
+    { table: 'books', col: 'ia_identifier TEXT' }
+  ];
+
+  for (const item of columnsToAdd) {
+    try {
+      db.prepare(`ALTER TABLE ${item.table} ADD COLUMN ${item.col}`).run();
+    } catch (e) {
+      // Column already exists
+    }
   }
 
   console.log('Database schema created and verified successfully.');
