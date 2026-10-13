@@ -1,0 +1,28 @@
+# Node dependencies
+node_modules/
+.npm/
+
+# Build artifacts
+dist/
+build/
+.tmp/
+*.tsbuildinfo
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
