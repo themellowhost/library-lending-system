@@ -76,6 +76,37 @@ api.interceptors.response.use(
       });
     }
 
+    // 1b. OAuth Login (Apple / Google)
+    if (url.includes('/auth/oauth') && method === 'post') {
+      const { provider, email, name } = data;
+      const existing = MOCK_USERS.find(
+        (u) => u.email.toLowerCase() === (email || '').toLowerCase()
+      );
+
+      const user = existing
+        ? { id: existing.id, email: existing.email, name: existing.name, role: existing.role, memberId: existing.memberId, memberNumber: existing.memberNumber, memberStatus: existing.memberStatus }
+        : {
+            id: 100 + Math.floor(Math.random() * 800),
+            email: email || `${provider}.user@apple.id`,
+            name: name || (provider === 'apple' ? 'Apple Verified Account' : 'Google Workspace Account'),
+            role: 'member' as const,
+            memberId: 50,
+            memberNumber: 'MEM-00999',
+            memberStatus: 'active',
+          };
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config,
+        data: {
+          token: `mock-oauth-token-${provider}-${Date.now()}`,
+          user,
+        },
+      };
+    }
+
     // 2. Auth Me
     if (url.includes('/auth/me') && method === 'get') {
       const savedUser = localStorage.getItem('library_user');

@@ -98,5 +98,82 @@ router.get('/me', authenticate, (req: AuthenticatedRequest, res) => {
   res.json({ user, member: memberData });
 });
 
+// POST /api/auth/oauth - Sign in or register with Apple / Google
+const oauthSchema = z.object({
+  provider: z.enum(['apple', 'google']),
+  email: z.string().email(),
+  name: z.string().optional(),
+});
+
+router.post('/oauth', (req, res) => {
+  const parse = oauthSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Invalid OAuth payload', details: parse.error.issues });
+    return;
+  }
+
+  const { provider, email, name } = parse.data;
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+
+  if (!user) {
+    // Automatically provision verified OAuth member in SQLite
+    const displayName = name || (provider === 'apple' ? 'Apple User' : 'Google User');
+    const randomHash = bcrypt.hashSync(Math.random().toString(36), 10);
+    
+    const insertRes = db.prepare(`
+      INSERT INTO users (email, password_hash, name, role)
+      VALUES (?, ?, ?, 'member')
+    `).run(email, randomHash, displayName);
+
+    const newUserId = insertRes.lastInsertRowid;
+    const memberNum = `MEM-${Math.floor(10000 + Math.random() * 90000)}`;
+
+    db.prepare(`
+      INSERT INTO members (user_id, member_number, status, max_loans)
+      VALUES (?, ?, 'active', 5)
+    `).run(newUserId, memberNum);
+
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId) as any;
+  }
+
+  let memberId: number | undefined;
+  let memberNumber: string | undefined;
+  let memberStatus: string | undefined;
+
+  if (user.role === 'member') {
+    const member = db.prepare('SELECT * FROM members WHERE user_id = ?').get(user.id) as any;
+    if (member) {
+      memberId = member.id;
+      memberNumber = member.member_number;
+      memberStatus = member.status;
+    }
+  }
+
+  const token = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      memberId,
+    },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      memberId,
+      memberNumber,
+      memberStatus,
+    },
+  });
+});
+
 export default router;
 
