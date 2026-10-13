@@ -33,6 +33,7 @@ api.interceptors.response.use(
     const isNetworkOr404 =
       !error.response ||
       error.response.status === 404 ||
+      error.response.status === 405 ||
       error.code === 'ERR_NETWORK' ||
       error.message?.includes('Network Error');
 
