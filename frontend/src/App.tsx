@@ -10,6 +10,7 @@ import { LoginModal } from './components/LoginModal';
 import { AddBookModal } from './components/AddBookModal';
 import { OpenCatalogBrowser } from './components/OpenCatalogBrowser';
 import { BookReaderView } from './components/BookReaderView';
+import { LibrarianDashboard } from './components/LibrarianDashboard';
 import { OpenLibraryDoc, Book } from './types';
 
 import {
@@ -22,11 +23,13 @@ import {
   LogIn,
   LogOut,
   Globe,
+  Layers,
+  Shield,
 } from 'lucide-react';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'catalog' | 'open-archive' | 'circulation' | 'my-account' | 'members' | 'reports'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'open-archive' | 'librarian-desk' | 'circulation' | 'my-account' | 'members' | 'reports'>('catalog');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [activeReadingBook, setActiveReadingBook] = useState<{
     title: string;
@@ -108,56 +111,85 @@ export function App() {
               <span>Open E-Library</span>
             </button>
 
+            {/* Member Dedicated View */}
             {currentUser?.role === 'member' && (
               <button
                 onClick={() => {
                   setActiveTab('my-account');
                   setSelectedBookId(null);
+                  setActiveReadingBook(null);
                 }}
-                className={`hover:text-white transition cursor-pointer ${
-                  activeTab === 'my-account' ? 'text-white font-semibold' : ''
+                className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'my-account' && !activeReadingBook ? 'text-white font-semibold' : ''
                 }`}
               >
-                My Loans & Holds
+                <Bookmark className="w-3.5 h-3.5 text-[#2997ff]" />
+                <span>My Borrowed & Holds</span>
               </button>
             )}
 
+            {/* Librarian Dedicated View */}
             {(currentUser?.role === 'librarian' || currentUser?.role === 'admin') && (
               <>
                 <button
                   onClick={() => {
-                    setActiveTab('circulation');
+                    setActiveTab('librarian-desk');
                     setSelectedBookId(null);
+                    setActiveReadingBook(null);
                   }}
-                  className={`hover:text-white transition cursor-pointer ${
-                    activeTab === 'circulation' ? 'text-white font-semibold' : ''
+                  className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'librarian-desk' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
                 >
-                  Circulation Desk
+                  <Layers className="w-3.5 h-3.5 text-[#2997ff]" />
+                  <span>Librarian Dashboard</span>
                 </button>
 
                 <button
                   onClick={() => {
-                    setActiveTab('members');
+                    setActiveTab('circulation');
                     setSelectedBookId(null);
+                    setActiveReadingBook(null);
                   }}
-                  className={`hover:text-white transition cursor-pointer ${
-                    activeTab === 'members' ? 'text-white font-semibold' : ''
+                  className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'circulation' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
                 >
-                  Members
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  <span>Circulation Desk</span>
+                </button>
+              </>
+            )}
+
+            {/* Admin Dedicated View */}
+            {currentUser?.role === 'admin' && (
+              <>
+                <button
+                  onClick={() => {
+                    setActiveTab('members');
+                    setSelectedBookId(null);
+                    setActiveReadingBook(null);
+                  }}
+                  className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'members' && !activeReadingBook ? 'text-white font-semibold' : ''
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Member Accounts</span>
                 </button>
 
                 <button
                   onClick={() => {
                     setActiveTab('reports');
                     setSelectedBookId(null);
+                    setActiveReadingBook(null);
                   }}
-                  className={`hover:text-white transition cursor-pointer ${
-                    activeTab === 'reports' ? 'text-white font-semibold' : ''
+                  className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'reports' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
                 >
-                  Analytics & Overdue
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span>Admin Reports</span>
                 </button>
               </>
             )}
@@ -219,27 +251,44 @@ export function App() {
               onClick={() => {
                 setActiveTab('my-account');
                 setSelectedBookId(null);
+                setActiveReadingBook(null);
               }}
               className={`whitespace-nowrap ${activeTab === 'my-account' ? 'text-white font-bold' : ''}`}
             >
-              My Loans
+              My Loans & Holds
             </button>
           )}
           {(currentUser?.role === 'librarian' || currentUser?.role === 'admin') && (
             <>
               <button
                 onClick={() => {
+                  setActiveTab('librarian-desk');
+                  setSelectedBookId(null);
+                  setActiveReadingBook(null);
+                }}
+                className={`whitespace-nowrap ${activeTab === 'librarian-desk' ? 'text-white font-bold' : ''}`}
+              >
+                Librarian Desk
+              </button>
+              <button
+                onClick={() => {
                   setActiveTab('circulation');
                   setSelectedBookId(null);
+                  setActiveReadingBook(null);
                 }}
                 className={`whitespace-nowrap ${activeTab === 'circulation' ? 'text-white font-bold' : ''}`}
               >
                 Circulation
               </button>
+            </>
+          )}
+          {currentUser?.role === 'admin' && (
+            <>
               <button
                 onClick={() => {
                   setActiveTab('members');
                   setSelectedBookId(null);
+                  setActiveReadingBook(null);
                 }}
                 className={`whitespace-nowrap ${activeTab === 'members' ? 'text-white font-bold' : ''}`}
               >
@@ -249,10 +298,11 @@ export function App() {
                 onClick={() => {
                   setActiveTab('reports');
                   setSelectedBookId(null);
+                  setActiveReadingBook(null);
                 }}
                 className={`whitespace-nowrap ${activeTab === 'reports' ? 'text-white font-bold' : ''}`}
               >
-                Analytics
+                Admin Reports
               </button>
             </>
           )}
@@ -306,6 +356,12 @@ export function App() {
               });
             }}
           />
+        ) : activeTab === 'librarian-desk' ? (
+          <LibrarianDashboard
+            onOpenAddBook={() => setShowAddBookModal(true)}
+            onGoToCirculation={() => setActiveTab('circulation')}
+            onSelectBook={(id) => setSelectedBookId(id)}
+          />
         ) : activeTab === 'circulation' ? (
           <CirculationDesk />
         ) : activeTab === 'my-account' ? (
@@ -339,6 +395,13 @@ export function App() {
           onSuccess={(user) => {
             setCurrentUser(user);
             setShowLoginModal(false);
+            if (user.role === 'librarian') {
+              setActiveTab('librarian-desk');
+            } else if (user.role === 'member') {
+              setActiveTab('my-account');
+            } else if (user.role === 'admin') {
+              setActiveTab('reports');
+            }
           }}
           onClose={() => setShowLoginModal(false)}
         />
