@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// In development or when reverse-proxied, use relative '/api'
+// In GitHub Pages or standalone mode, fallback to VITE_API_URL or relative
+const baseURL = import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
 });
 
 api.interceptors.request.use((config) => {
@@ -13,4 +17,3 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
-
