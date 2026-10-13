@@ -260,7 +260,7 @@ export function App() {
       </header>
 
       {/* Main Body */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex-1 w-full">
+      <main className={`mx-auto px-4 sm:px-6 py-6 sm:py-10 flex-1 w-full ${activeReadingBook ? 'max-w-[96vw] xl:max-w-[1550px]' : 'max-w-6xl'}`}>
         {activeReadingBook ? (
           <BookReaderView
             title={activeReadingBook.title}
