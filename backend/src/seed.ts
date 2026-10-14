@@ -88,17 +88,17 @@ export function seedData() {
     const auth8 = insertAuthor.run('Keith Elliot Greenberg').lastInsertRowid;
 
     // 6. Books
-    // Book 1: Database System Concepts
+    // Book 1: Database System Concepts (with Open Access companion)
     const b1 = insertBook.run(
       '978-0078022159',
       'Database System Concepts (7th Edition)',
       'McGraw-Hill',
       cat2,
       2019,
-      'Fundamental textbook for relational databases, ACID transactions, and query processing.',
+      'Fundamental textbook for relational databases, ACID transactions, and query processing. Includes full Open Access companion edition.',
       'https://covers.openlibrary.org/b/id/8226191-L.jpg',
       null,
-      'https://archive.org/embed/databasesystemco0000silb',
+      'https://opentextbc.ca/dbdesign01/',
       'databasesystemco0000silb'
     ).lastInsertRowid;
     insertBookAuthor.run(b1, auth1);
@@ -115,7 +115,7 @@ export function seedData() {
       'The definitive guide to distributed data systems, reliability, scalability, and maintainability.',
       'https://covers.openlibrary.org/b/id/8389656-L.jpg',
       null,
-      null,
+      'https://aosabook.org/en/index.html',
       null
     ).lastInsertRowid;
     insertBookAuthor.run(b2, auth4);
@@ -130,7 +130,7 @@ export function seedData() {
       'Software structure, domain boundaries, decoupling, and dependency inversion.',
       'https://covers.openlibrary.org/b/id/8575003-L.jpg',
       null,
-      null,
+      'https://aosabook.org/en/index.html',
       null
     ).lastInsertRowid;
     insertBookAuthor.run(b3, auth5);
@@ -142,11 +142,11 @@ export function seedData() {
       'MIT Press',
       cat1,
       1996,
-      'Legendary computing and programming paradigms book from MIT. Free open-access digital edition.',
+      'Legendary computing and programming paradigms book from MIT. Free open-access digital edition with full interactive reader.',
       'https://covers.openlibrary.org/b/id/149338-L.jpg',
-      'https://archive.org/download/jisuanjichengxud0000abel/jisuanjichengxud0000abel.pdf',
-      'https://archive.org/embed/jisuanjichengxud0000abel',
-      'jisuanjichengxud0000abel'
+      null,
+      'https://sarabander.github.io/sicp/',
+      null
     ).lastInsertRowid;
     insertBookAuthor.run(b4, auth6);
     insertBookAuthor.run(b4, auth7);
@@ -160,7 +160,7 @@ export function seedData() {
       1994,
       'The biography of Steve Jobs and Steve Wozniak creating Apple Computer. Full public domain PDF online.',
       'https://covers.openlibrary.org/b/id/1239615-L.jpg',
-      'https://archive.org/download/jobs-wozniak-creating-the-apple-computer/jobs-wozniak-creating-the-apple-computer.pdf',
+      null,
       'https://archive.org/embed/jobs-wozniak-creating-the-apple-computer',
       'jobs-wozniak-creating-the-apple-computer'
     ).lastInsertRowid;
@@ -230,9 +230,9 @@ function seedOpenAccessBooks() {
     1996,
     'Legendary computing and programming paradigms book from MIT. Free open-access digital edition with full online reader.',
     'https://covers.openlibrary.org/b/id/149338-L.jpg',
-    'https://archive.org/download/jisuanjichengxud0000abel/jisuanjichengxud0000abel.pdf',
-    'https://archive.org/embed/jisuanjichengxud0000abel',
-    'jisuanjichengxud0000abel'
+    null,
+    'https://sarabander.github.io/sicp/',
+    null
   ).lastInsertRowid;
 
   if (b1) {
@@ -248,9 +248,9 @@ function seedOpenAccessBooks() {
     'Lerner Publications',
     catId,
     1994,
-    'The biography of Steve Jobs and Steve Wozniak creating Apple Computer. Full public domain PDF online.',
+    'The biography of Steve Jobs and Steve Wozniak creating Apple Computer. Full public domain online.',
     'https://covers.openlibrary.org/b/id/1239615-L.jpg',
-    'https://archive.org/download/jobs-wozniak-creating-the-apple-computer/jobs-wozniak-creating-the-apple-computer.pdf',
+    null,
     'https://archive.org/embed/jobs-wozniak-creating-the-apple-computer',
     'jobs-wozniak-creating-the-apple-computer'
   ).lastInsertRowid;
