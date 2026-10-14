@@ -10,6 +10,7 @@ import { LoginModal } from './components/LoginModal';
 import { AddBookModal } from './components/AddBookModal';
 import { BookReaderView } from './components/BookReaderView';
 import { LibrarianDashboard } from './components/LibrarianDashboard';
+import { OpenCatalogBrowser } from './components/OpenCatalogBrowser';
 import { Book } from './types';
 
 import {
@@ -21,6 +22,7 @@ import {
   LogIn,
   LogOut,
   Layers,
+  Globe,
 } from 'lucide-react';
 
 export function App() {
@@ -50,14 +52,18 @@ export function App() {
     }
   }, []);
 
-  // Strict role-based view enforcement: prevent any role from accessing unnecessary or unauthorized views
+  // Strict role-based view enforcement:
+  // - Non-logged in: can ONLY access 'catalog' and 'open-archive'
+  // - Member: can access 'catalog', 'open-archive', and 'my-account'
+  // - Librarian: can access 'catalog', 'librarian-desk', 'circulation' (NO open-archive)
+  // - Admin: can access 'catalog', 'librarian-desk', 'circulation', 'members', 'reports' (NO open-archive)
   useEffect(() => {
     if (!currentUser) {
-      if (activeTab !== 'catalog') {
+      if (!['catalog', 'open-archive'].includes(activeTab)) {
         setActiveTab('catalog');
       }
     } else if (currentUser.role === 'member') {
-      if (!['catalog', 'my-account'].includes(activeTab)) {
+      if (!['catalog', 'open-archive', 'my-account'].includes(activeTab)) {
         setActiveTab('catalog');
       }
     } else if (currentUser.role === 'librarian') {
@@ -103,9 +109,9 @@ export function App() {
             <span className="text-xs font-semibold tracking-tight text-white/95">LiberFlow</span>
           </div>
 
-          {/* Navigation Links - Strictly filtered per membership level */}
+          {/* Navigation Links - Filtered per specifications */}
           <nav className="hidden md:flex items-center gap-7 text-[12px] text-white/70 font-normal">
-            {/* Catalog is the universal home for everyone */}
+            {/* Catalog is the universal home */}
             <button
               onClick={() => navigateToTab('catalog')}
               className={`hover:text-white transition cursor-pointer ${
@@ -115,7 +121,20 @@ export function App() {
               Catalog
             </button>
 
-            {/* Member Level: ONLY sees 'My Borrowed & Holds' */}
+            {/* Open E-Library: Accessible while not logged in AND when logged in as member ONLY */}
+            {(!currentUser || currentUser.role === 'member') && (
+              <button
+                onClick={() => navigateToTab('open-archive')}
+                className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'open-archive' && !activeReadingBook ? 'text-white font-semibold' : ''
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 text-[#2997ff]" />
+                <span>Open E-Library</span>
+              </button>
+            )}
+
+            {/* Member Level: 'My Borrowed & Holds' */}
             {currentUser?.role === 'member' && (
               <button
                 onClick={() => navigateToTab('my-account')}
@@ -128,7 +147,7 @@ export function App() {
               </button>
             )}
 
-            {/* Librarian & Admin Level: Librarian Desk & Circulation Desk */}
+            {/* Librarian & Admin Level: Librarian Desk & Circulation Desk (NO E-Library) */}
             {(currentUser?.role === 'librarian' || currentUser?.role === 'admin') && (
               <>
                 <button
@@ -177,8 +196,6 @@ export function App() {
                 </button>
               </>
             )}
-
-            {/* Non-logged-in visitors see NO other views or portal buttons */}
           </nav>
 
           {/* User Status / Login Pill */}
@@ -211,60 +228,69 @@ export function App() {
           </div>
         </div>
 
-        {/* Mobile Navigation bar - ONLY shown when user has secondary views */}
-        {currentUser && (
-          <div className="md:hidden flex overflow-x-auto px-4 py-2 bg-black/60 border-t border-white/5 gap-4 text-xs text-white/70">
+        {/* Mobile Navigation bar */}
+        <div className="md:hidden flex overflow-x-auto px-4 py-2 bg-black/60 border-t border-white/5 gap-4 text-xs text-white/70">
+          <button
+            onClick={() => navigateToTab('catalog')}
+            className={`whitespace-nowrap ${activeTab === 'catalog' && !activeReadingBook ? 'text-white font-bold' : ''}`}
+          >
+            Catalog
+          </button>
+
+          {/* Open E-Library for non-logged in and member only */}
+          {(!currentUser || currentUser.role === 'member') && (
             <button
-              onClick={() => navigateToTab('catalog')}
-              className={`whitespace-nowrap ${activeTab === 'catalog' && !activeReadingBook ? 'text-white font-bold' : ''}`}
+              onClick={() => navigateToTab('open-archive')}
+              className={`whitespace-nowrap flex items-center gap-1 ${activeTab === 'open-archive' && !activeReadingBook ? 'text-white font-bold' : ''}`}
             >
-              Catalog
+              <Globe className="w-3 h-3 text-[#2997ff]" />
+              Open E-Library
             </button>
+          )}
 
-            {currentUser.role === 'member' && (
+          {currentUser?.role === 'member' && (
+            <button
+              onClick={() => navigateToTab('my-account')}
+              className={`whitespace-nowrap ${activeTab === 'my-account' ? 'text-white font-bold' : ''}`}
+            >
+              My Loans & Holds
+            </button>
+          )}
+
+          {(currentUser?.role === 'librarian' || currentUser?.role === 'admin') && (
+            <>
               <button
-                onClick={() => navigateToTab('my-account')}
-                className={`whitespace-nowrap ${activeTab === 'my-account' ? 'text-white font-bold' : ''}`}
+                onClick={() => navigateToTab('librarian-desk')}
+                className={`whitespace-nowrap ${activeTab === 'librarian-desk' ? 'text-white font-bold' : ''}`}
               >
-                My Loans & Holds
+                Librarian Desk
               </button>
-            )}
+              <button
+                onClick={() => navigateToTab('circulation')}
+                className={`whitespace-nowrap ${activeTab === 'circulation' ? 'text-white font-bold' : ''}`}
+              >
+                Circulation
+              </button>
+            </>
+          )}
 
-            {(currentUser.role === 'librarian' || currentUser.role === 'admin') && (
-              <>
-                <button
-                  onClick={() => navigateToTab('librarian-desk')}
-                  className={`whitespace-nowrap ${activeTab === 'librarian-desk' ? 'text-white font-bold' : ''}`}
-                >
-                  Librarian Desk
-                </button>
-                <button
-                  onClick={() => navigateToTab('circulation')}
-                  className={`whitespace-nowrap ${activeTab === 'circulation' ? 'text-white font-bold' : ''}`}
-                >
-                  Circulation
-                </button>
-              </>
-            )}
-
-            {currentUser.role === 'admin' && (
-              <>
-                <button
-                  onClick={() => navigateToTab('members')}
-                  className={`whitespace-nowrap ${activeTab === 'members' ? 'text-white font-bold' : ''}`}
-                >
-                  Members
-                </button>
-                <button
-                  onClick={() => navigateToTab('reports')}
-                  className={`whitespace-nowrap ${activeTab === 'reports' ? 'text-white font-bold' : ''}`}
-                >
-                  Admin Reports
-                </button>
-              </>
-            )}
-          </div>
-        )}
+          {currentUser?.role === 'admin' && (
+            <>
+              <button
+                onClick={() => navigateToTab('members')}
+                className={`whitespace-nowrap ${activeTab === 'members' ? 'text-white font-bold' : ''}`}
+              >
+                Members
+              </button>
+              <button
+                onClick={() => navigateToTab('reports')}
+                className={`whitespace-nowrap ${activeTab === 'reports' ? 'text-white font-bold' : ''}`}
+              >
+                Admin Reports
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
       {/* Main Body */}
@@ -301,6 +327,19 @@ export function App() {
             user={currentUser}
             onSelectBook={(id) => setSelectedBookId(id)}
             onOpenAddBook={() => setShowAddBookModal(true)}
+            onNavigateToOpenLibrary={(!currentUser || currentUser?.role === 'member') ? () => navigateToTab('open-archive') : undefined}
+          />
+        ) : activeTab === 'open-archive' && (!currentUser || currentUser?.role === 'member') ? (
+          <OpenCatalogBrowser
+            onReadOnline={(doc) => {
+              setActiveReadingBook({
+                title: doc.title,
+                authors: doc.author_name.join(', '),
+                readerUrl: doc.reader_url,
+                pdfUrl: doc.pdf_url,
+                iaIdentifier: doc.ia_identifier,
+              });
+            }}
           />
         ) : currentUser?.role === 'member' && activeTab === 'my-account' ? (
           <MemberDashboard />
@@ -322,6 +361,7 @@ export function App() {
             user={currentUser}
             onSelectBook={(id) => setSelectedBookId(id)}
             onOpenAddBook={() => setShowAddBookModal(true)}
+            onNavigateToOpenLibrary={(!currentUser || currentUser?.role === 'member') ? () => navigateToTab('open-archive') : undefined}
           />
         )}
       </main>
