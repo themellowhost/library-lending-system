@@ -60,6 +60,34 @@ async function runLiveSystemVerification() {
   assert(adminLoginRes.status === 200 && adminAuth.user.role === 'admin', 'Admin Login returns admin role', adminAuth);
   const adminToken = adminAuth.token;
 
+  // New Member Self-Registration Flow
+  const regEmail = `test.member.${Date.now()}@university.edu`;
+  const regRes = await fetch(`${BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Elena Rostova',
+      email: regEmail,
+      password: 'password123',
+      phone: '+1-555-0199'
+    })
+  });
+  const regData = await regRes.json() as any;
+  assert(regRes.status === 201 && !!regData.token && regData.user.role === 'member', 'Registration creates active member account and returns token', regData);
+  assert(!!regData.user.memberNumber && regData.user.memberNumber.startsWith('MEM-'), 'Registered member receives assigned member number');
+
+  // Verify duplicate registration rejection (409)
+  const dupRes = await fetch(`${BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Duplicate Elena',
+      email: regEmail,
+      password: 'password123'
+    })
+  });
+  assert(dupRes.status === 409, 'Duplicate email registration returns 409 Conflict');
+
   // --- Step 3: Catalog & Search ---
   console.log('\n3. Catalog & Metadata Lookup');
   const booksRes = await fetch(`${BASE_URL}/books`);

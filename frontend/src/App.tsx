@@ -23,6 +23,7 @@ import {
   LogOut,
   Layers,
   Globe,
+  UserPlus,
 } from 'lucide-react';
 
 export function App() {
@@ -37,6 +38,7 @@ export function App() {
     iaIdentifier?: string | null;
   } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginModalMode, setLoginModalMode] = useState<'signin' | 'register'>('signin');
   const [showAddBookModal, setShowAddBookModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -218,12 +220,28 @@ export function App() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="apple-pill-btn px-4 py-1 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                <LogIn className="w-3 h-3" /> Sign In
-              </button>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  onClick={() => {
+                    setLoginModalMode('signin');
+                    setShowLoginModal(true);
+                  }}
+                  className="px-3 py-1 rounded-full text-[11px] font-medium text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogIn className="w-3 h-3" />
+                  <span>Sign In</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setLoginModalMode('register');
+                    setShowLoginModal(true);
+                  }}
+                  className="apple-pill-btn px-3.5 py-1 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  <span>Create Account</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -385,6 +403,7 @@ export function App() {
       {/* Modals */}
       {showLoginModal && (
         <LoginModal
+          initialMode={loginModalMode}
           onSuccess={(user) => {
             setCurrentUser(user);
             setShowLoginModal(false);

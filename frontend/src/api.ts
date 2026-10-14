@@ -134,6 +134,62 @@ api.interceptors.response.use(
       };
     }
 
+    // 1c. Auth Register
+    if (url.includes('/auth/register') && method === 'post') {
+      const { email, password, name, phone } = data;
+      const cleanEmail = (email || '').toLowerCase().trim();
+      const existing = MOCK_USERS.find((u) => u.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        return Promise.reject({
+          response: {
+            status: 409,
+            data: { error: 'An account with this email address already exists. Please sign in.' },
+          },
+        });
+      }
+
+      const newId = 100 + MOCK_USERS.length + 1;
+      const newMemberNumber = `MEM-${String(100 + newId).padStart(5, '0')}`;
+      const newUser = {
+        id: newId,
+        email: cleanEmail,
+        name: name || 'New Member',
+        role: 'member' as const,
+        memberId: newId,
+        memberNumber: newMemberNumber,
+        memberStatus: 'active' as const,
+        password: password || 'password123',
+      };
+
+      MOCK_USERS.push(newUser);
+      runtimeMembers.push({
+        id: newId,
+        user_id: newId,
+        member_number: newMemberNumber,
+        name: name || 'New Member',
+        email: cleanEmail,
+        phone: phone || undefined,
+        max_loans: 5,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        active_loans_count: 0,
+        overdue_loans_count: 0,
+      });
+
+      const { password: _, ...safeUser } = newUser;
+      return {
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config: error.config,
+        data: {
+          message: 'Account created successfully! Welcome to LiberFlow.',
+          token: `mock-register-token-${newId}-${Date.now()}`,
+          user: safeUser,
+        },
+      };
+    }
+
     // 2. Auth Me
     if (url.includes('/auth/me') && method === 'get') {
       const savedUser = localStorage.getItem('library_user');

@@ -2,23 +2,52 @@ import React, { useState } from 'react';
 import api from '../api';
 import { User } from '../types';
 import { MOCK_USERS } from '../mockData';
-import { X, Sparkles, ShieldAlert, ArrowRight, Loader2, Check } from 'lucide-react';
+import { X, Sparkles, ShieldAlert, ArrowRight, Loader2, Check, UserPlus, LogIn, Mail, Lock, User as UserIcon, Phone } from 'lucide-react';
 
 interface LoginModalProps {
   onSuccess: (user: User) => void;
   onClose: () => void;
+  initialMode?: 'signin' | 'register';
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) => {
-  const [email, setEmail] = useState('librarian@library.edu');
-  const [password, setPassword] = useState('password123');
+export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose, initialMode = 'signin' }) => {
+  const [mode, setMode] = useState<'signin' | 'register'>(initialMode);
+  
+  // Shared Form Fields
+  const [email, setEmail] = useState(initialMode === 'register' ? '' : 'librarian@library.edu');
+  const [password, setPassword] = useState(initialMode === 'register' ? '' : 'password123');
+
+  // Register Fields
+  const [name, setName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
+
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'apple' | 'google' | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Switch between Sign In and Register modes
+  const handleSwitchMode = (newMode: 'signin' | 'register') => {
+    setMode(newMode);
+    setError('');
+    setSuccessMsg('');
+    if (newMode === 'register') {
+      setEmail('');
+      setPassword('');
+      setName('');
+      setConfirmPassword('');
+      setPhone('');
+    } else {
+      setEmail('librarian@library.edu');
+      setPassword('password123');
+    }
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     const cleanEmail = email.trim().toLowerCase();
@@ -30,7 +59,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
       if (res && res.data && res.data.user) {
         localStorage.setItem('library_token', res.data.token || 'library-token-valid');
         localStorage.setItem('library_user', JSON.stringify(res.data.user));
-        onSuccess(res.data.user);
+        setSuccessMsg('Signed in successfully!');
+        setTimeout(() => onSuccess(res.data.user), 350);
         return;
       }
     } catch (err: any) {
@@ -48,7 +78,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
       localStorage.setItem('library_token', mockToken);
       localStorage.setItem('library_user', JSON.stringify(safeUser));
       setLoading(false);
-      onSuccess(safeUser);
+      setSuccessMsg('Signed in successfully!');
+      setTimeout(() => onSuccess(safeUser), 350);
       return;
     }
 
@@ -66,20 +97,104 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
       localStorage.setItem('library_token', `session-jwt-custom-${Date.now()}`);
       localStorage.setItem('library_user', JSON.stringify(fallbackMember));
       setLoading(false);
-      onSuccess(fallbackMember);
+      setSuccessMsg('Signed in successfully!');
+      setTimeout(() => onSuccess(fallbackMember), 350);
       return;
     }
 
-    setError('Invalid email or password. Use password123 for any account.');
+    setError('Invalid email or password. Use password123 for demo accounts or create a new account.');
     setLoading(false);
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      setError('Please enter your full name (at least 2 characters).');
+      return;
+    }
+
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setError('Please provide a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match. Please verify.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Attempt live API server registration
+      const res = await api.post('/auth/register', {
+        name: cleanName,
+        email: cleanEmail,
+        password,
+        phone: cleanPhone || undefined,
+      });
+
+      if (res && res.data && res.data.user) {
+        localStorage.setItem('library_token', res.data.token || 'library-token-valid');
+        localStorage.setItem('library_user', JSON.stringify(res.data.user));
+        setSuccessMsg(res.data.message || 'Account created successfully! Redirecting…');
+        setTimeout(() => onSuccess(res.data.user), 600);
+        return;
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || err.message;
+      if (err.response?.status === 409) {
+        setError(errorMsg || 'An account with this email already exists. Please sign in.');
+        setLoading(false);
+        return;
+      }
+      console.warn('Backend register not reachable, registering via client runtime engine…', err);
+    }
+
+    // 2. Direct client-side registration fallback (for GitHub Pages & offline demo mode)
+    const newId = 100 + MOCK_USERS.length + 1;
+    const memberNum = `MEM-${String(100 + newId).padStart(5, '0')}`;
+    const newMember: User = {
+      id: newId,
+      email: cleanEmail,
+      name: cleanName,
+      role: 'member',
+      memberId: newId,
+      memberNumber: memberNum,
+      memberStatus: 'active',
+    };
+
+    MOCK_USERS.push({
+      ...newMember,
+      password,
+    });
+
+    localStorage.setItem('library_token', `session-jwt-reg-${newId}-${Date.now()}`);
+    localStorage.setItem('library_user', JSON.stringify(newMember));
+    setLoading(false);
+    setSuccessMsg('Account created successfully! Welcome to LiberFlow.');
+    setTimeout(() => onSuccess(newMember), 600);
   };
 
   const handleOAuthLogin = async (provider: 'apple' | 'google') => {
     setError('');
+    setSuccessMsg('');
     setOauthLoading(provider);
 
     try {
-      // Simulate real OAuth authorization popup / handshake latency
+      // Simulate OAuth authorization popup / handshake latency
       await new Promise((r) => setTimeout(r, 450));
 
       const defaultName = provider === 'apple' ? 'Apple Verified Scholar' : 'Google Workspace Researcher';
@@ -97,11 +212,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
           localStorage.setItem('library_token', res.data.token || 'oauth-token-valid');
           localStorage.setItem('library_user', JSON.stringify(res.data.user));
           setOauthLoading(null);
-          onSuccess(res.data.user);
+          setSuccessMsg(`Signed in with ${provider === 'apple' ? 'Apple' : 'Google'}!`);
+          setTimeout(() => onSuccess(res.data.user), 350);
           return;
         }
       } catch (e) {
-        // Continue to direct client-side session resolution
+        // Fall through to client mock resolution
       }
 
       // 2. Direct client-side session resolution for GitHub Pages / static hosting
@@ -119,7 +235,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
       localStorage.setItem('library_token', oauthToken);
       localStorage.setItem('library_user', JSON.stringify(oauthUser));
       setOauthLoading(null);
-      onSuccess(oauthUser);
+      setSuccessMsg(`Signed in with ${provider === 'apple' ? 'Apple' : 'Google'}!`);
+      setTimeout(() => onSuccess(oauthUser), 350);
     } catch (err: any) {
       console.error(`OAuth login failed with ${provider}`, err);
       setError(`Failed to sign in with ${provider}`);
@@ -128,39 +245,80 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
   };
 
   const setDemoAccount = (demoEmail: string) => {
+    handleSwitchMode('signin');
     setEmail(demoEmail);
     setPassword('password123');
     setError('');
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div className="relative bg-[#1c1c1e] rounded-[28px] shadow-2xl max-w-md w-full border border-white/10 overflow-hidden text-[#f5f5f7]">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+      <div className="relative bg-[#1c1c1e] rounded-[28px] shadow-2xl max-w-md w-full border border-white/10 overflow-hidden text-[#f5f5f7] max-h-[92vh] flex flex-col">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer z-10"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="p-8 pt-10 text-center">
-          {/* Logo badge */}
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0071e3] to-[#42a5f5] mx-auto mb-4 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Sparkles className="w-6 h-6 text-white" />
+        <div className="p-8 pt-8 overflow-y-auto">
+          {/* Logo badge & Header */}
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0071e3] to-[#42a5f5] mx-auto mb-3 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              {mode === 'signin' ? (
+                <Sparkles className="w-6 h-6 text-white" />
+              ) : (
+                <UserPlus className="w-6 h-6 text-white" />
+              )}
+            </div>
+
+            <h2 className="text-2xl font-bold tracking-tight text-white">
+              {mode === 'signin' ? 'Sign In to LiberFlow' : 'Create an Account'}
+            </h2>
+            <p className="text-xs text-[#86868b] mt-1">
+              {mode === 'signin'
+                ? 'Access catalog circulation, reserves & digital loans'
+                : 'Register as an institutional member with instant borrowing privileges'}
+            </p>
+
+            {/* Segmented Control Pill */}
+            <div className="inline-flex p-1 rounded-full bg-[#2c2c2e] border border-white/10 mt-5 mb-2">
+              <button
+                type="button"
+                onClick={() => handleSwitchMode('signin')}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  mode === 'signin'
+                    ? 'bg-[#0071e3] text-white shadow-md'
+                    : 'text-[#86868b] hover:text-white'
+                }`}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchMode('register')}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  mode === 'register'
+                    ? 'bg-[#0071e3] text-white shadow-md'
+                    : 'text-[#86868b] hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Create Account
+              </button>
+            </div>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight text-white">Sign In to LiberFlow</h2>
-          <p className="text-xs text-[#86868b] mt-1">Access catalog circulation & digital loans</p>
-
-          {/* Social OAuth Providers */}
-          <div className="mt-6 space-y-2.5">
+          {/* Social OAuth Providers (Apple / Google) */}
+          <div className="mt-4 space-y-2">
             {/* Sign in with Apple */}
             <button
               type="button"
               onClick={() => handleOAuthLogin('apple')}
               disabled={loading || oauthLoading !== null}
-              className="w-full py-3 px-4 rounded-xl bg-white text-black font-semibold text-xs flex items-center justify-center gap-2.5 hover:bg-white/90 active:scale-[0.99] transition cursor-pointer shadow-md disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-xl bg-white text-black font-semibold text-xs flex items-center justify-center gap-2 hover:bg-white/90 active:scale-[0.99] transition cursor-pointer shadow-md disabled:opacity-50"
             >
               {oauthLoading === 'apple' ? (
                 <Loader2 className="w-4 h-4 animate-spin text-black" />
@@ -177,7 +335,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
               type="button"
               onClick={() => handleOAuthLogin('google')}
               disabled={loading || oauthLoading !== null}
-              className="w-full py-3 px-4 rounded-xl bg-[#2c2c2e] hover:bg-[#3a3a3c] border border-white/10 text-white font-semibold text-xs flex items-center justify-center gap-2.5 active:scale-[0.99] transition cursor-pointer shadow-md disabled:opacity-50"
+              className="w-full py-2.5 px-4 rounded-xl bg-[#2c2c2e] hover:bg-[#3a3a3c] border border-white/10 text-white font-semibold text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer shadow-md disabled:opacity-50"
             >
               {oauthLoading === 'google' ? (
                 <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -206,92 +364,248 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess, onClose }) =>
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
+          <div className="flex items-center gap-3 my-5">
             <div className="h-px bg-white/10 flex-1" />
-            <span className="text-[11px] uppercase tracking-wider text-[#86868b] font-medium">or email</span>
+            <span className="text-[11px] uppercase tracking-wider text-[#86868b] font-medium">
+              or with email
+            </span>
             <div className="h-px bg-white/10 flex-1" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4 text-left">
-            {error && (
-              <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-red-400 text-xs">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+          {/* Alerts */}
+          {error && (
+            <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-red-400 text-xs">
+              <ShieldAlert className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="mb-4 p-3.5 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-2.5 text-green-400 text-xs">
+              <Check className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* FORM: Sign In */}
+          {mode === 'signin' && (
+            <form onSubmit={handleSignIn} className="space-y-3.5 text-left">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1.5 ml-1">
+                  Institutional Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#86868b] absolute left-3.5 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@domain.edu"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                  />
+                </div>
               </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1.5 ml-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#86868b] absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || oauthLoading !== null}
+                className="w-full mt-2 py-3 px-6 apple-pill-btn text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/15 disabled:opacity-50"
+              >
+                <span>{loading ? 'Authenticating…' : 'Sign In with Email'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* FORM: Create Account */}
+          {mode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-3 text-left">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1 ml-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <UserIcon className="w-4 h-4 text-[#86868b] absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Elena Rostova"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1 ml-1">
+                  Institutional / Personal Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#86868b] absolute left-3.5 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="elena@university.edu"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1 ml-1">
+                  Phone Number <span className="text-white/40 normal-case">(optional)</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-[#86868b] absolute left-3.5 top-3" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+1 (555) 019-2834"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1 ml-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#86868b] absolute left-3 top-3" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Min 6 chars"
+                      className="w-full pl-9 pr-3 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1 ml-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#86868b] absolute left-3 top-3" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="w-full pl-9 pr-3 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[11px] text-blue-300">
+                ✨ Account includes <strong>5 concurrent book loans</strong>, online reservation holds, and access to all open digital editions.
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || oauthLoading !== null}
+                className="w-full mt-2 py-3 px-6 apple-pill-btn text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/15 disabled:opacity-50"
+              >
+                <span>{loading ? 'Creating Member Account…' : 'Register Member Account'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* Footer toggle prompt */}
+          <div className="mt-4 text-center">
+            {mode === 'signin' ? (
+              <p className="text-xs text-[#86868b]">
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMode('register')}
+                  className="text-[#2997ff] hover:underline font-semibold cursor-pointer"
+                >
+                  Create one now
+                </button>
+              </p>
+            ) : (
+              <p className="text-xs text-[#86868b]">
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => handleSwitchMode('signin')}
+                  className="text-[#2997ff] hover:underline font-semibold cursor-pointer"
+                >
+                  Sign in
+                </button>
+              </p>
             )}
-
-            <div>
-              <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1.5 ml-1">
-                Institutional Email
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@domain.edu"
-                className="w-full px-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1.5 ml-1">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] focus:border-transparent transition"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || oauthLoading !== null}
-              className="w-full mt-2 py-3 px-6 apple-pill-btn text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/15 disabled:opacity-50"
-            >
-              <span>{loading ? 'Authenticating…' : 'Sign In with Email'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          {/* Quick Demo Switchers */}
-          <div className="mt-6 pt-5 border-t border-white/10">
-            <p className="text-[11px] text-[#86868b] font-medium mb-2.5">Instant Role Switcher (password123):</p>
-            <div className="flex flex-wrap gap-2 justify-center text-[11px]">
-              <button
-                type="button"
-                onClick={() => setDemoAccount('librarian@library.edu')}
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full font-medium transition cursor-pointer text-white/90"
-              >
-                Librarian Desk
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoAccount('alex@student.edu')}
-                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full font-medium transition cursor-pointer text-white/90"
-              >
-                Alex (Member)
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoAccount('priya@student.edu')}
-                className="px-3 py-1.5 bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full font-medium transition cursor-pointer"
-              >
-                Priya (Overdue)
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoAccount('admin@library.edu')}
-                className="px-3 py-1.5 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full font-medium transition cursor-pointer"
-              >
-                Admin
-              </button>
-            </div>
           </div>
+
+          {/* Quick Demo Switchers (visible in signin mode) */}
+          {mode === 'signin' && (
+            <div className="mt-5 pt-4 border-t border-white/10">
+              <p className="text-[11px] text-[#86868b] font-medium mb-2.5 text-center">
+                Instant Demo Access (password123):
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('librarian@library.edu')}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full font-medium transition cursor-pointer text-white/90"
+                >
+                  Librarian Desk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('alex@student.edu')}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full font-medium transition cursor-pointer text-white/90"
+                >
+                  Alex (Member)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('priya@student.edu')}
+                  className="px-3 py-1.5 bg-red-500/20 text-red-300 hover:bg-red-500/30 rounded-full font-medium transition cursor-pointer"
+                >
+                  Priya (Overdue)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('admin@library.edu')}
+                  className="px-3 py-1.5 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-full font-medium transition cursor-pointer"
+                >
+                  Admin
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

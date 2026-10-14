@@ -21,6 +21,94 @@ const registerMemberSchema = z.object({
   maxLoans: z.number().int().positive().optional().default(5),
 });
 
+// POST /api/auth/register - Register a new member account
+router.post('/register', (req, res) => {
+  const parse = registerMemberSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Validation failed', details: parse.error.issues });
+    return;
+  }
+
+  const { email, password, name, phone } = parse.data;
+  const cleanEmail = email.trim().toLowerCase();
+
+  // Check if user already exists
+  const existingUser = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
+  if (existingUser) {
+    res.status(409).json({ error: 'An account with this email address already exists. Please sign in.' });
+    return;
+  }
+
+  try {
+    const registerTx = db.transaction(() => {
+      const passwordHash = bcrypt.hashSync(password, 10);
+
+      const insertUserRes = db.prepare(`
+        INSERT INTO users (email, password_hash, name, role)
+        VALUES (?, ?, ?, 'member')
+      `).run(cleanEmail, passwordHash, name.trim());
+
+      const newUserId = Number(insertUserRes.lastInsertRowid);
+
+      // Generate unique collision-free member number
+      let memberNumber = '';
+      while (true) {
+        const candidateNum = 10000 + Math.floor(Math.random() * 90000);
+        const candidate = `MEM-${candidateNum}`;
+        const exists = db.prepare('SELECT id FROM members WHERE member_number = ?').get(candidate);
+        if (!exists) {
+          memberNumber = candidate;
+          break;
+        }
+      }
+
+      const insertMemberRes = db.prepare(`
+        INSERT INTO members (user_id, member_number, phone, max_loans, status)
+        VALUES (?, ?, ?, 5, 'active')
+      `).run(newUserId, memberNumber, phone || null);
+
+      const memberId = Number(insertMemberRes.lastInsertRowid);
+
+      db.prepare(`
+        INSERT INTO audit_logs (action, target_type, target_id, performed_by_id, details)
+        VALUES (?, ?, ?, ?, ?)
+      `).run('REGISTER', 'USER', newUserId, newUserId, `New member registration for ${name} (${memberNumber})`);
+
+      return {
+        id: newUserId,
+        email: cleanEmail,
+        name: name.trim(),
+        role: 'member' as const,
+        memberId,
+        memberNumber,
+        memberStatus: 'active' as const,
+      };
+    });
+
+    const user = registerTx();
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        memberId: user.memberId,
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: 'Account created successfully! Welcome to LiberFlow.',
+      token,
+      user,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to create account', details: err.message });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', (req, res) => {
   const parse = loginSchema.safeParse(req.body);
