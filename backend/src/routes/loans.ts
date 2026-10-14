@@ -423,13 +423,19 @@ router.get('/my-loans', authenticate, (req: AuthenticatedRequest, res) => {
         WHEN l.returned_at IS NULL AND datetime('now') > datetime(l.due_at) THEN 1 
         ELSE 0 
       END as is_overdue,
-      le.id as pending_extension_id,
-      le.requested_days as pending_extension_days,
-      le.reason as pending_extension_reason
+      le.id as extension_id,
+      le.status as extension_status,
+      le.requested_days as extension_requested_days,
+      le.reason as extension_reason,
+      le.review_notes as extension_review_notes,
+      le.reviewed_at as extension_reviewed_at
     FROM loans l
     JOIN copies c ON l.copy_id = c.id
     JOIN books b ON c.book_id = b.id
-    LEFT JOIN loan_extensions le ON l.id = le.loan_id AND le.status = 'pending'
+    LEFT JOIN (
+      SELECT * FROM loan_extensions 
+      WHERE id IN (SELECT MAX(id) FROM loan_extensions GROUP BY loan_id)
+    ) le ON l.id = le.loan_id
     WHERE l.member_id = ?
     ORDER BY l.checked_out_at DESC
   `).all(req.user.memberId);

@@ -165,10 +165,56 @@ export const MemberDashboard: React.FC = () => {
                       {loan.renewal_count || 0} / 2 used
                     </td>
                     <td className="py-4 px-4">
-                      {loan.pending_extension_id ? (
-                        <span className="px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-semibold inline-flex items-center gap-1.5">
-                          <FileText className="w-3 h-3" /> Under Librarian Review
-                        </span>
+                      {loan.extension_status === 'pending' || loan.pending_extension_id ? (
+                        <div className="space-y-1">
+                          <span className="px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-semibold inline-flex items-center gap-1.5">
+                            <FileText className="w-3 h-3" /> Under Librarian Review
+                          </span>
+                          <span className="block text-[10px] text-[#86868b]">
+                            +{loan.extension_requested_days || loan.pending_extension_days || 7}d requested
+                          </span>
+                        </div>
+                      ) : loan.extension_status === 'approved' ? (
+                        <div className="space-y-1">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold inline-flex items-center gap-1.5">
+                            <Check className="w-3 h-3" /> Extension Approved
+                          </span>
+                          {(loan.renewal_count || 0) < 2 && loan.is_overdue === 0 && (
+                            <button
+                              onClick={() => {
+                                setSelectedLoanForExt(loan);
+                                setRequestedDays(7);
+                                setExtensionReason('Additional coursework and project study requirements.');
+                              }}
+                              className="block text-[11px] text-[#2997ff] hover:underline cursor-pointer pt-0.5"
+                            >
+                              Apply Again (1 left)
+                            </button>
+                          )}
+                        </div>
+                      ) : loan.extension_status === 'rejected' ? (
+                        <div className="space-y-1">
+                          <span className="px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-semibold inline-flex items-center gap-1.5">
+                            <AlertTriangle className="w-3 h-3" /> Extension Rejected
+                          </span>
+                          {loan.extension_review_notes && (
+                            <span className="block text-[10px] text-[#86868b] max-w-xs truncate" title={loan.extension_review_notes}>
+                              Note: {loan.extension_review_notes}
+                            </span>
+                          )}
+                          {(loan.renewal_count || 0) < 2 && loan.is_overdue === 0 && (
+                            <button
+                              onClick={() => {
+                                setSelectedLoanForExt(loan);
+                                setRequestedDays(7);
+                                setExtensionReason('Revised extension request with updated project details.');
+                              }}
+                              className="block text-[11px] text-[#2997ff] hover:underline cursor-pointer pt-0.5"
+                            >
+                              Re-apply
+                            </button>
+                          )}
+                        </div>
                       ) : loan.is_overdue === 0 && (loan.renewal_count || 0) < 2 ? (
                         <button
                           onClick={() => {

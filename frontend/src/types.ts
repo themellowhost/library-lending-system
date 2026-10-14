@@ -67,6 +67,12 @@ export interface Loan {
   book_title: string;
   isbn: string;
   is_overdue: number;
+  extension_id?: number | null;
+  extension_status?: 'pending' | 'approved' | 'rejected' | null;
+  extension_requested_days?: number | null;
+  extension_reason?: string | null;
+  extension_review_notes?: string | null;
+  extension_reviewed_at?: string | null;
   pending_extension_id?: number | null;
   pending_extension_days?: number | null;
   pending_extension_reason?: string | null;

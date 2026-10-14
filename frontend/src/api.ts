@@ -687,14 +687,24 @@ api.interceptors.response.use(
       }
 
       ext.status = decision === 'approve' ? 'approved' : 'rejected';
+      ext.reviewed_at = new Date().toISOString();
+      ext.review_notes = reviewNotes || (decision === 'approve' ? 'Approved by duty librarian' : 'Denied by librarian');
       const loan = runtimeLoans.find((l) => l.id === ext.loan_id);
+
+      if (loan) {
+        loan.extension_status = ext.status;
+        loan.extension_requested_days = ext.requested_days;
+        loan.extension_reason = ext.reason;
+        loan.extension_review_notes = ext.review_notes;
+        loan.extension_reviewed_at = ext.reviewed_at;
+        loan.pending_extension_id = null;
+      }
 
       if (decision === 'approve' && loan) {
         const currentDue = new Date(loan.due_at);
         currentDue.setDate(currentDue.getDate() + ext.requested_days);
         loan.due_at = currentDue.toISOString();
         loan.renewal_count = (loan.renewal_count || 0) + 1;
-        loan.pending_extension_id = null;
 
         return {
           status: 200,
@@ -709,7 +719,6 @@ api.interceptors.response.use(
           },
         };
       } else {
-        if (loan) loan.pending_extension_id = null;
         return {
           status: 200,
           statusText: 'OK',

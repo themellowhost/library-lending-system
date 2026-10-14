@@ -59,6 +59,8 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
   };
 
   const handleReviewExtension = async (extId: number, decision: 'approve' | 'reject') => {
+    // Immediately remove from pending extensions in state for instant feedback
+    setPendingExtensions((prev) => prev.filter((e) => e.id !== extId));
     try {
       const res = await api.post(`/loans/extensions/${extId}/review`, {
         decision,
@@ -69,6 +71,7 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
       loadData();
     } catch (err: any) {
       alert(err.response?.data?.error || `Failed to ${decision} extension`);
+      loadData();
     }
   };
 
