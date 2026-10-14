@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User } from './types';
+import { User, TabType } from './types';
 import { CatalogView } from './components/CatalogView';
 import { BookDetailModal } from './components/BookDetailModal';
 import { CirculationDesk } from './components/CirculationDesk';
@@ -25,6 +25,7 @@ import {
   Globe,
   Layers,
   Shield,
+  Lock,
 } from 'lucide-react';
 
 export function App() {
@@ -54,11 +55,27 @@ export function App() {
     }
   }, []);
 
+  // When logging out, completely clear credentials, reset the view back to the home page (catalog),
+  // and close any active modals or e-readers.
   const handleLogout = () => {
     localStorage.removeItem('library_token');
     localStorage.removeItem('library_user');
     setCurrentUser(null);
     setActiveTab('catalog');
+    setSelectedBookId(null);
+    setActiveReadingBook(null);
+    setShowAddBookModal(false);
+  };
+
+  // Safe navigation handler: requires authentication for protected views
+  const navigateToTab = (tab: 'catalog' | 'open-archive' | 'librarian-desk' | 'circulation' | 'my-account' | 'members' | 'reports') => {
+    if (!currentUser && tab !== 'catalog' && tab !== 'open-archive') {
+      setShowLoginModal(true);
+      return;
+    }
+    setActiveTab(tab);
+    setSelectedBookId(null);
+    setActiveReadingBook(null);
   };
 
   const triggerRefresh = () => {
@@ -72,10 +89,7 @@ export function App() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
           {/* Logo brand */}
           <div
-            onClick={() => {
-              setActiveTab('catalog');
-              setSelectedBookId(null);
-            }}
+            onClick={() => navigateToTab('catalog')}
             className="flex items-center gap-2 cursor-pointer group"
           >
             <Apple className="w-4 h-4 text-white/90 group-hover:text-white transition" />
@@ -85,11 +99,7 @@ export function App() {
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-7 text-[12px] text-white/70 font-normal">
             <button
-              onClick={() => {
-                setActiveTab('catalog');
-                setSelectedBookId(null);
-                setActiveReadingBook(null);
-              }}
+              onClick={() => navigateToTab('catalog')}
               className={`hover:text-white transition cursor-pointer ${
                 activeTab === 'catalog' && !activeReadingBook ? 'text-white font-semibold' : ''
               }`}
@@ -98,11 +108,7 @@ export function App() {
             </button>
 
             <button
-              onClick={() => {
-                setActiveTab('open-archive');
-                setSelectedBookId(null);
-                setActiveReadingBook(null);
-              }}
+              onClick={() => navigateToTab('open-archive')}
               className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'open-archive' && !activeReadingBook ? 'text-white font-semibold' : ''
               }`}
@@ -111,14 +117,10 @@ export function App() {
               <span>Open E-Library</span>
             </button>
 
-            {/* Member Dedicated View */}
+            {/* Authenticated Member Dedicated View */}
             {currentUser?.role === 'member' && (
               <button
-                onClick={() => {
-                  setActiveTab('my-account');
-                  setSelectedBookId(null);
-                  setActiveReadingBook(null);
-                }}
+                onClick={() => navigateToTab('my-account')}
                 className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'my-account' && !activeReadingBook ? 'text-white font-semibold' : ''
                 }`}
@@ -128,15 +130,11 @@ export function App() {
               </button>
             )}
 
-            {/* Librarian Dedicated View */}
+            {/* Authenticated Librarian Dedicated View */}
             {(currentUser?.role === 'librarian' || currentUser?.role === 'admin') && (
               <>
                 <button
-                  onClick={() => {
-                    setActiveTab('librarian-desk');
-                    setSelectedBookId(null);
-                    setActiveReadingBook(null);
-                  }}
+                  onClick={() => navigateToTab('librarian-desk')}
                   className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'librarian-desk' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
@@ -146,11 +144,7 @@ export function App() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    setActiveTab('circulation');
-                    setSelectedBookId(null);
-                    setActiveReadingBook(null);
-                  }}
+                  onClick={() => navigateToTab('circulation')}
                   className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'circulation' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
@@ -161,15 +155,11 @@ export function App() {
               </>
             )}
 
-            {/* Admin Dedicated View */}
+            {/* Authenticated Admin Dedicated View */}
             {currentUser?.role === 'admin' && (
               <>
                 <button
-                  onClick={() => {
-                    setActiveTab('members');
-                    setSelectedBookId(null);
-                    setActiveReadingBook(null);
-                  }}
+                  onClick={() => navigateToTab('members')}
                   className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'members' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
@@ -179,16 +169,44 @@ export function App() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    setActiveTab('reports');
-                    setSelectedBookId(null);
-                    setActiveReadingBook(null);
-                  }}
+                  onClick={() => navigateToTab('reports')}
                   className={`hover:text-white transition cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'reports' && !activeReadingBook ? 'text-white font-semibold' : ''
                   }`}
                 >
                   <BarChart3 className="w-3.5 h-3.5" />
+                  <span>Admin Reports</span>
+                </button>
+              </>
+            )}
+
+            {/* Guest Portals - Explicitly require login to access other views */}
+            {!currentUser && (
+              <>
+                <button
+                  onClick={() => navigateToTab('my-account')}
+                  className="hover:text-white transition cursor-pointer flex items-center gap-1 text-white/50 hover:text-white/80"
+                  title="Sign in to access your borrowed books and hold reservations"
+                >
+                  <Lock className="w-3 h-3 text-white/40" />
+                  <span>Member Portal</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToTab('librarian-desk')}
+                  className="hover:text-white transition cursor-pointer flex items-center gap-1 text-white/50 hover:text-white/80"
+                  title="Sign in to access librarian circulation controls"
+                >
+                  <Lock className="w-3 h-3 text-white/40" />
+                  <span>Circulation Desk</span>
+                </button>
+
+                <button
+                  onClick={() => navigateToTab('reports')}
+                  className="hover:text-white transition cursor-pointer flex items-center gap-1 text-white/50 hover:text-white/80"
+                  title="Sign in to view institutional database and circulation analytics"
+                >
+                  <Lock className="w-3 h-3 text-white/40" />
                   <span>Admin Reports</span>
                 </button>
               </>
@@ -207,10 +225,11 @@ export function App() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  title="Sign out"
-                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer"
+                  title="Sign out & return to home"
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 flex items-center gap-1.5 text-white/80 hover:text-white transition cursor-pointer text-xs"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-3 h-3" />
+                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
             ) : (
@@ -227,32 +246,20 @@ export function App() {
         {/* Mobile Navigation bar */}
         <div className="md:hidden flex overflow-x-auto px-4 py-2 bg-black/60 border-t border-white/5 gap-4 text-xs text-white/70">
           <button
-            onClick={() => {
-              setActiveTab('catalog');
-              setSelectedBookId(null);
-              setActiveReadingBook(null);
-            }}
+            onClick={() => navigateToTab('catalog')}
             className={`whitespace-nowrap ${activeTab === 'catalog' && !activeReadingBook ? 'text-white font-bold' : ''}`}
           >
             Catalog
           </button>
           <button
-            onClick={() => {
-              setActiveTab('open-archive');
-              setSelectedBookId(null);
-              setActiveReadingBook(null);
-            }}
+            onClick={() => navigateToTab('open-archive')}
             className={`whitespace-nowrap ${activeTab === 'open-archive' && !activeReadingBook ? 'text-white font-bold' : ''}`}
           >
             Open E-Library
           </button>
           {currentUser?.role === 'member' && (
             <button
-              onClick={() => {
-                setActiveTab('my-account');
-                setSelectedBookId(null);
-                setActiveReadingBook(null);
-              }}
+              onClick={() => navigateToTab('my-account')}
               className={`whitespace-nowrap ${activeTab === 'my-account' ? 'text-white font-bold' : ''}`}
             >
               My Loans & Holds
@@ -261,21 +268,13 @@ export function App() {
           {(currentUser?.role === 'librarian' || currentUser?.role === 'admin') && (
             <>
               <button
-                onClick={() => {
-                  setActiveTab('librarian-desk');
-                  setSelectedBookId(null);
-                  setActiveReadingBook(null);
-                }}
+                onClick={() => navigateToTab('librarian-desk')}
                 className={`whitespace-nowrap ${activeTab === 'librarian-desk' ? 'text-white font-bold' : ''}`}
               >
                 Librarian Desk
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('circulation');
-                  setSelectedBookId(null);
-                  setActiveReadingBook(null);
-                }}
+                onClick={() => navigateToTab('circulation')}
                 className={`whitespace-nowrap ${activeTab === 'circulation' ? 'text-white font-bold' : ''}`}
               >
                 Circulation
@@ -285,23 +284,40 @@ export function App() {
           {currentUser?.role === 'admin' && (
             <>
               <button
-                onClick={() => {
-                  setActiveTab('members');
-                  setSelectedBookId(null);
-                  setActiveReadingBook(null);
-                }}
+                onClick={() => navigateToTab('members')}
                 className={`whitespace-nowrap ${activeTab === 'members' ? 'text-white font-bold' : ''}`}
               >
                 Members
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('reports');
-                  setSelectedBookId(null);
-                  setActiveReadingBook(null);
-                }}
+                onClick={() => navigateToTab('reports')}
                 className={`whitespace-nowrap ${activeTab === 'reports' ? 'text-white font-bold' : ''}`}
               >
+                Admin Reports
+              </button>
+            </>
+          )}
+          {!currentUser && (
+            <>
+              <button
+                onClick={() => navigateToTab('my-account')}
+                className="whitespace-nowrap flex items-center gap-1 text-white/50"
+              >
+                <Lock className="w-3 h-3 text-white/40" />
+                Member Portal
+              </button>
+              <button
+                onClick={() => navigateToTab('librarian-desk')}
+                className="whitespace-nowrap flex items-center gap-1 text-white/50"
+              >
+                <Lock className="w-3 h-3 text-white/40" />
+                Circulation Desk
+              </button>
+              <button
+                onClick={() => navigateToTab('reports')}
+                className="whitespace-nowrap flex items-center gap-1 text-white/50"
+              >
+                <Lock className="w-3 h-3 text-white/40" />
                 Admin Reports
               </button>
             </>
@@ -311,7 +327,38 @@ export function App() {
 
       {/* Main Body */}
       <main className={`mx-auto px-4 sm:px-6 py-6 sm:py-10 flex-1 w-full ${activeReadingBook ? 'max-w-[96vw] xl:max-w-[1550px]' : 'max-w-6xl'}`}>
-        {activeReadingBook ? (
+        {/* If user is not logged in and attempts to access any protected tab, enforce sign in requirement */}
+        {!currentUser && activeTab !== 'catalog' && activeTab !== 'open-archive' ? (
+          <div className="py-20 text-center max-w-md mx-auto space-y-6 animate-in fade-in duration-300">
+            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto shadow-2xl">
+              <Lock className="w-7 h-7 text-[#2997ff]" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold tracking-tight text-white">Sign In Required</h2>
+              <p className="text-xs text-[#86868b] leading-relaxed">
+                This workspace is protected. Please sign in with your Member, Librarian, or Administrator credentials to access this view.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="apple-pill-btn px-6 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer shadow-lg shadow-blue-500/20"
+              >
+                <LogIn className="w-3.5 h-3.5" /> Sign In to Continue
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('catalog');
+                  setSelectedBookId(null);
+                  setActiveReadingBook(null);
+                }}
+                className="apple-secondary-btn px-6 py-2.5 text-xs font-semibold flex items-center justify-center gap-2 w-full sm:w-auto cursor-pointer"
+              >
+                Back to Home Catalog
+              </button>
+            </div>
+          </div>
+        ) : activeReadingBook ? (
           <BookReaderView
             title={activeReadingBook.title}
             authors={activeReadingBook.authors}
@@ -326,6 +373,7 @@ export function App() {
             user={currentUser}
             onBack={() => setSelectedBookId(null)}
             onRefresh={triggerRefresh}
+            onRequireLogin={() => setShowLoginModal(true)}
             onOpenReader={(b) => {
               setActiveReadingBook({
                 title: b.title,
@@ -403,7 +451,12 @@ export function App() {
               setActiveTab('reports');
             }
           }}
-          onClose={() => setShowLoginModal(false)}
+          onClose={() => {
+            setShowLoginModal(false);
+            if (!currentUser && activeTab !== 'catalog' && activeTab !== 'open-archive') {
+              setActiveTab('catalog');
+            }
+          }}
         />
       )}
 

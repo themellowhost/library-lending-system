@@ -9,9 +9,17 @@ interface BookDetailModalProps {
   onBack: () => void;
   onRefresh: () => void;
   onOpenReader?: (book: Book) => void;
+  onRequireLogin?: () => void;
 }
 
-export const BookDetailModal: React.FC<BookDetailModalProps> = ({ bookId, user, onBack, onRefresh, onOpenReader }) => {
+export const BookDetailModal: React.FC<BookDetailModalProps> = ({
+  bookId,
+  user,
+  onBack,
+  onRefresh,
+  onOpenReader,
+  onRequireLogin,
+}) => {
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -145,6 +153,16 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({ bookId, user, 
                 <Download className="w-3.5 h-3.5" />
                 Download PDF
               </a>
+            )}
+
+            {!user && (
+              <button
+                onClick={() => onRequireLogin && onRequireLogin()}
+                className="apple-pill-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                Sign In to Reserve Copy
+              </button>
             )}
 
             {user?.role === 'member' && (

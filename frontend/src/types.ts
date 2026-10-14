@@ -1,5 +1,7 @@
 export type UserRole = 'member' | 'librarian' | 'admin';
 
+export type TabType = 'catalog' | 'open-archive' | 'librarian-desk' | 'circulation' | 'my-account' | 'members' | 'reports';
+
 export interface User {
   id: number;
   email: string;
