@@ -11,125 +11,93 @@ def create_deck():
     prs.slide_height = Inches(7.5)
     blank_slide_layout = prs.slide_layouts[6]
 
-    # Color Palette (Dark Apple & Slate modern aesthetic)
-    BG_DARK = RGBColor(10, 10, 11)        # Deep Apple Black (#0a0a0b)
-    BG_LIGHT = RGBColor(248, 250, 252)    # Slate 50
-    CARD_BG = RGBColor(255, 255, 255)     # White
-    CARD_BORDER = RGBColor(226, 232, 240) # Slate 200
-    ACCENT_BLUE = RGBColor(0, 113, 227)   # Apple Blue (#0071E3)
-    ACCENT_INDIGO = RGBColor(79, 70, 229) # Indigo 600
-    TEXT_MAIN = RGBColor(15, 23, 42)      # Slate 900
-    TEXT_MUTED = RGBColor(100, 116, 139)  # Slate 500
-    TEXT_LIGHT = RGBColor(255, 255, 255)  # White
-    EMERALD = RGBColor(16, 185, 129)      # Emerald 500
-    PURPLE = RGBColor(157, 78, 221)       # Purple
+    # Ultra-Modern Apple Dark Theme Palette
+    BG_DARK = RGBColor(9, 9, 11)           # Pure Dark Background (#09090b)
+    CARD_BG = RGBColor(20, 20, 24)         # Elevated Card Surface (#141418)
+    CARD_BORDER = RGBColor(39, 39, 46)     # Subtle Dark Border (#27272e)
+    ACCENT_BLUE = RGBColor(0, 113, 227)    # Apple Electric Blue (#0071E3)
+    ACCENT_INDIGO = RGBColor(139, 92, 246) # Purple Accent (#8B5CF6)
+    ACCENT_CYAN = RGBColor(56, 189, 248)   # Sky Cyan (#38BDF8)
+    TEXT_MAIN = RGBColor(250, 250, 250)    # Primary Light Text (#FAFAFA)
+    TEXT_MUTED = RGBColor(161, 161, 170)   # Slate Muted Text (#A1A1AA)
+    EMERALD = RGBColor(16, 185, 129)       # Emerald Green (#10B981)
+    AMBER = RGBColor(245, 158, 11)         # Amber Orange (#F59E0B)
 
     slides_data = [
-        # SLIDE 1: Title
+        # SLIDE 1: Title Slide (Dark)
         {
             "type": "title",
             "tag": "DBMS SEMESTER 5 • LAB CONTINUOUS ASSESSMENT (LCA)",
             "title": "Library Lending System (LiberFlow)",
-            "subtitle": "Relational Modeling, Open-Access E-Reader, Federated OAuth & Apple-Inspired UI",
+            "subtitle": "Relational Modeling, Interactive E-Reader, Federated OAuth & Apple-Inspired Architecture",
             "footer": "Engineered with React 19 • Node.js/TypeScript • SQLite (WAL Mode) • Open Library API • Deployed to GitHub Pages"
         },
-        # SLIDE 2: Problem Statement & Core Design Choice
+        # SLIDE 2: Problem Statement & Fundamental Separation
         {
             "type": "content_2col",
             "tag": "SYSTEM REQUIREMENTS & CORE DOMAIN",
             "title": "Problem Statement & The Fundamental Design Choice",
-            "left_title": "The Domain Challenge",
+            "left_title": "The Core Domain Challenge",
             "left_bullets": [
-                "A library does not lend abstract titles; it lends individual physical items with barcodes.",
-                "Naive library systems merge books and inventory, leading to severe data anomalies.",
-                "Requirements encompass 3 distinct user roles: Member, Librarian, and Administrator.",
-                "Circulation needs strict transactional enforcement to avoid concurrent double-booking."
+                "A library does not lend abstract titles; it lends physical barcoded items placed on distinct shelves.",
+                "Naive systems merge catalog entries and physical stock, leading to severe data anomalies and inventory loss.",
+                "Circulation demands strict transactional ACID guarantees to eliminate concurrent double-booking.",
+                "Students require self-service reservations and loan extensions with duty librarian approval oversight."
             ],
             "right_title": "Key Design Choice: Title vs. Copy Separation",
             "right_bullets": [
                 "Book Entity (Metadata): Title, ISBN, Publisher, Category, Authors, Digital Reader/PDF URLs.",
-                "Copy Entity (Physical Item): Barcode, Shelf Location, Lending Status ('available', 'on_loan', 'on_hold').",
-                "Scalability: 1 title can have 10 physical copies across multiple library floors with independent circulation lifecycles.",
-                "Digital Hybrid: Physical copies circulate via barcode transactions while digital editions stream via online readers."
+                "Copy Entity (Physical Item): Asset Barcode, Shelf Location, Status ('available', 'on_loan', 'on_hold').",
+                "Scalability: 1 title seamlessly scales to 10+ physical copies across library stacks with independent circulation.",
+                "Digital Hybrid: Physical copies circulate via barcode transactions while digital editions stream via online e-readers."
             ]
         },
-        # SLIDE 3: Tech Stack Selection & Justification
+        # SLIDE 3: Tech Stack Selection & Architecture
         {
             "type": "content_3card",
             "tag": "ARCHITECTURE DECISION RECORD (ADR)",
-            "title": "Technology Stack: What We Used and Why",
+            "title": "Technology Stack: Selection Rationale & Advantages",
             "cards": [
                 {
                     "title": "Frontend: React 19 + Apple UI",
                     "subtitle": "Apple Dark Glass & Interactive E-Reader",
                     "points": [
-                        "Apple Design Language: Dark frosted glass (.apple-glass), SF Pro fonts, and pill buttons.",
-                        "Interactive Digital E-Reader: Fast-embedded 2-page reader canvas with theater fullscreen mode.",
-                        "Federated OAuth: One-click Sign In with Apple and Google with official brand SVGs.",
-                        "Dual-Mode Resilience: Instant client-side fallback store enabling seamless static GitHub Pages hosting."
+                        "Apple Dark Aesthetics: Apple glass (.apple-glass), SF Pro fonts, and pill buttons.",
+                        "Fast E-Reader: Direct embedded 2-page reader canvas with 86vh viewport.",
+                        "Federated OAuth: One-click Sign In with Apple and Google with official brand vector SVGs.",
+                        "Static Deployment Resilience: In-memory runtime engine enabling full functionality on GitHub Pages."
                     ]
                 },
                 {
                     "title": "Backend: Node.js + Express + TS",
                     "subtitle": "Type Safety & Open API Integration",
                     "points": [
-                        "Full TypeScript Stack: Shared data interfaces between client and server.",
-                        "Open Library Integration: Live search proxy querying millions of public-domain books.",
-                        "Bcrypt & JWT Auth: Industry-standard 10-round salted password hashing with signed tokens.",
-                        "Background Worker: Automatic 60s reaper for expired hold queues."
+                        "Full TypeScript Stack: Shared data interfaces between client, server, and schema models.",
+                        "Open Library Integration: Live ISBN auto-lookup and open-access search for millions of public books.",
+                        "Bcrypt & JWT Auth: Salted password hashing with signed authorization tokens.",
+                        "Hold Reaper Worker: Automated 60s background daemon promoting waiting hold queues."
                     ]
                 },
                 {
                     "title": "DBMS: Relational Engine (WAL)",
-                    "subtitle": "ACID Guarantees & Partial Unique Indexes",
+                    "subtitle": "ACID Transactions & Partial Unique Indexes",
                     "points": [
                         "Foreign Keys Enforced (PRAGMA foreign_keys = ON): Guaranteed referential integrity.",
-                        "Write-Ahead Logging (WAL): Concurrency support for simultaneous reads and writes.",
-                        "Partial Unique Indexes: True DBMS-level constraints (e.g. 1 active loan per copy).",
-                        "Immutable Audit Log: Dedicated audit_logs table for all checkout, return, and renewal actions."
+                        "Write-Ahead Logging (WAL): Concurrency support for concurrent reads and writes.",
+                        "Partial Unique Indexes: True DBMS constraints (1 active loan per copy, 1 active hold per member).",
+                        "Audit Trail: Immutable audit_logs table for all checkouts, returns, extensions, and fine settlements."
                     ]
                 }
             ]
         },
-        # SLIDE 4: Relational Schema & Entity-Relationship Architecture
+        # SLIDE 4: High-Resolution Rendered ER Diagram (Dark)
         {
-            "type": "er_diagram",
+            "type": "er_diagram_image",
             "tag": "RELATIONAL DATABASE DESIGN • ENTITY RELATIONSHIPS",
             "title": "Relational Schema & Entity-Relationship Architecture",
-            "entities": [
-                {
-                    "table": "users & members (1 : 1)",
-                    "desc": "users (id, email, password_hash, role) ───< members (id, user_id, member_number, max_loans, status)",
-                    "constraint": "Foreign Key: user_id -> users(id) ON DELETE CASCADE"
-                },
-                {
-                    "table": "books & categories (N : 1)",
-                    "desc": "categories (id, name) ───< books (id, isbn, title, category_id, cover_image_url, pdf_url, reader_url)",
-                    "constraint": "Foreign Key: category_id -> categories(id) ON DELETE SET NULL"
-                },
-                {
-                    "table": "books & authors (M : N Junction)",
-                    "desc": "books ───< book_authors (book_id, author_id) >─── authors (id, name)",
-                    "constraint": "Composite Primary Key: (book_id, author_id) with CASCADE deletes"
-                },
-                {
-                    "table": "books & copies (1 : N Inventory)",
-                    "desc": "books (id) ───< copies (id, book_id, barcode, status, location)",
-                    "constraint": "copies.barcode UNIQUE • status IN ('available','on_loan','on_hold','lost')"
-                },
-                {
-                    "table": "copies, members & loans (Circulation)",
-                    "desc": "copies (id) + members (id) ───< loans (id, copy_id, member_id, due_at, renewal_count, fine_amount)",
-                    "constraint": "PARTIAL UNIQUE INDEX: unique_active_loan_per_copy WHERE returned_at IS NULL"
-                },
-                {
-                    "table": "holds & audit_logs (Queues & Ledgers)",
-                    "desc": "holds (book_id, member_id, allocated_copy_id, status) + audit_logs (action, details)",
-                    "constraint": "PARTIAL UNIQUE INDEX: unique_active_hold_per_member_book"
-                }
-            ]
+            "image_path": "/Users/akhshatkampassi/Documents/GitHub/DIV-21---B.TECH-ECE-AI-ML----Black-Box/Study/Labs/DBMS/Sem 5 LCA/er_diagram_dark.png"
         },
-        # SLIDE 5: Checkout Journey & ACID Concurrency
+        # SLIDE 5: Transactional Checkout Workflow
         {
             "type": "content_steps",
             "tag": "WORKFLOW IMPLEMENTATION • TRANSACTION 1",
@@ -138,26 +106,26 @@ def create_deck():
                 {
                     "num": "01",
                     "head": "Input & Validation",
-                    "desc": "Librarian enters Member ID/Barcode and Copy Barcode. Zod validates payload format."
+                    "desc": "Librarian scans Member Card (MEM-XXXXX) and Item Barcode. Zod validates payload format."
                 },
                 {
                     "num": "02",
-                    "head": "Member Status Verification",
-                    "desc": "Verifies member.status == 'active'. Suspended or expired members immediately rejected."
+                    "head": "Account & Quota Check",
+                    "desc": "Verifies member is 'active' with zero unpaid fines and active loans < max_loans (quota limit)."
                 },
                 {
                     "num": "03",
-                    "head": "Borrowing Limit Enforcement",
-                    "desc": "Counts active loans. If active >= max_loans (e.g. 5), transaction aborts with informative error."
+                    "head": "Copy Availability Check",
+                    "desc": "Ensures copy status is 'available' or allocated to this specific borrower via reservation hold."
                 },
                 {
                     "num": "04",
                     "head": "Atomic Lock & Commit",
-                    "desc": "Inserts record into loans, transitions copy status to 'on_loan', fulfills holds in one atomic db.transaction()."
+                    "desc": "Inserts record into loans, updates copy status to 'on_loan', fulfills holds in one atomic db.transaction()."
                 }
             ]
         },
-        # SLIDE 6: Return Journey & Reservation Queue Re-allocation
+        # SLIDE 6: Return Workflow & Dynamic Overdue Calculation
         {
             "type": "content_steps",
             "tag": "WORKFLOW IMPLEMENTATION • TRANSACTION 2",
@@ -185,24 +153,24 @@ def create_deck():
                 }
             ]
         },
-        # SLIDE 7: Self-Service Renewal & Automated Background Reaper
+        # SLIDE 7: Loan Extension Application & Librarian Approval Workflow
         {
             "type": "content_2col",
-            "tag": "ADVANCED EXTENSIONS • RENEWALS & REAPERS",
-            "title": "Self-Service Loan Renewal & Automated Hold Reaper",
-            "left_title": "Operational Self-Service Renewal (+7 Days)",
+            "tag": "LENDING EXTENSION & APPROVAL GOVERNANCE",
+            "title": "Loan Extension Application & Librarian Approval Governance",
+            "left_title": "Student / Member Application Flow",
             "left_bullets": [
-                "Endpoint & UI: POST /api/loans/:id/renew with optimistic real-time UI state updates.",
-                "Rule 1: Overdue Prohibition — If current date > due_at, renewal is blocked with late fee warning.",
-                "Rule 2: Quota Limit — Maximum 2 renewals permitted per loan record (tracked via renewal_count).",
-                "Rule 3: Queue Priority Protection — If other students have placed holds on the book title, renewal is rejected to prevent starvation."
+                "Self-Service Application: Members click 'Apply for Extension' in My Account rather than automated renewal.",
+                "Academic Justification: Member selects requested window (+7, +14, +21 days) and submits reasoning (exams, thesis).",
+                "Instant Dialog Dismissal: Modal auto-dismisses upon submission with reactive UI banner.",
+                "Live Lifecycle Badging: Dynamic badge changes to 'Under Librarian Review', 'Extension Approved', or 'Extension Rejected' with librarian notes."
             ],
-            "right_title": "Automated Hold Expiration Background Worker",
+            "right_title": "Librarian Approval & Inventory Protection",
             "right_bullets": [
-                "Worker Function: reapExpiredHolds() executed every 60 seconds via background timer.",
-                "Expiration Detection: Queries holds WHERE status = 'ready_for_pickup' AND datetime('now') > datetime(expires_at).",
-                "Automatic Re-allocation: Transitions delinquent hold to 'expired' and immediately assigns physical copy to the NEXT student.",
-                "Inventory Fallback: If no other student is waiting, copy status automatically reverts to 'available' on shelf."
+                "Librarian Control Desk: Dedicated 'Pending Extension Applications' review queue on librarian dashboard.",
+                "Demand & Queue Checks: Librarian inspects borrower history and waiting hold counts before deciding.",
+                "Instant Queue Update: Approving/rejecting immediately removes the card from the pending queue.",
+                "Quota & Overdue Guard: Blocked if item is already overdue or if 2-extension maximum has been reached."
             ]
         },
         # SLIDE 8: Multi-User Role Architecture & View Differentiation
@@ -213,96 +181,91 @@ def create_deck():
             "cards": [
                 {
                     "title": "Member View (Students)",
-                    "subtitle": "Self-Service Circulation & Reader",
+                    "subtitle": "Self-Service Portal & Reservations",
                     "points": [
                         "Dedicated Portal: 'My Borrowed & Holds' showing due dates, fine alerts, and queue rank.",
-                        "One-Click Renewal: Operational +7 day loan renewal with instant live due date updates.",
-                        "Reservation Management: Place or cancel waiting holds on high-demand titles.",
-                        "Open E-Library: Browse public-domain digital books and open full-screen readers."
+                        "Online Reservation: 'Reserve for Library Pickup' with 3-day hold window on available copies.",
+                        "Extension Applications: Formal loan window prolongation request with live approval feedback.",
+                        "Open E-Library: Browse open-access books and open full-screen e-readers."
                     ]
                 },
                 {
-                    "title": "Librarian View (Desk Staff)",
-                    "subtitle": "Real-Time Inventory & Circulation",
+                    "title": "Librarian View (Staff)",
+                    "subtitle": "Inventory Health & Circulation Desk",
                     "points": [
-                        "Librarian Dashboard: Real-time tracking of Copies On Shelf (Available) vs. Currently Borrowed.",
+                        "5 Key Operational Metrics: Total Titles, Shelf Availability %, Active Loans, Ready for Pickup, Extension Requests.",
+                        "Extension Approval Desk: One-click Approve (+Xd) and Reject interface with student justification view.",
                         "Circulation Desk: High-speed barcode scanning interface for atomic Checkouts and Returns.",
-                        "Inventory Minting: Add new titles to the catalog and generate unique physical barcodes.",
-                        "Catalog Control: Real-time copy breakdown and shelf location inspection."
+                        "ISBN Auto-Scanning: Scan or enter ISBN to auto-fetch catalog metadata from Open Library."
                     ]
                 },
                 {
                     "title": "Administrator View (IT/Admin)",
                     "subtitle": "System Governance & Audit Trail",
                     "points": [
-                        "Member Account Management: Provision student accounts, assign quotas, suspend/activate.",
-                        "Circulation Analytics: Overdue delinquency reports and fine collection tracking.",
-                        "Security Oversight: Role-based authorization rules and user credential auditing.",
-                        "Audit Ledger: Complete historical trail of all checkout, return, and fine events."
+                        "Member Roster: Provision student accounts, mint MEM-XXXXX cards, toggle active/suspended.",
+                        "Circulation Analytics: Overdue delinquency reports and fine collection tracking ($1/day).",
+                        "Security Oversight: Role-based authorization rules and password hash verification.",
+                        "Audit Ledger: Complete historical trail of all checkout, return, extension, and fine events."
                     ]
                 }
             ]
         },
-        # SLIDE 9: Open-Access E-Reader & Digital Library Architecture
+        # SLIDE 9: Open-Access E-Reader & Global Archive Integration
         {
             "type": "content_2col",
             "tag": "DIGITAL EXTENSION • OPEN SOURCE INTEGRATION",
             "title": "Open-Access E-Reader & Global Archive Integration",
-            "left_title": "Internet Archive & Open Library Integration",
+            "left_title": "Open Library & Internet Archive Integration",
             "left_bullets": [
-                "Live Open-Search Proxy: Queries Open Library API with full-text filter across millions of free works.",
-                "Quick Topic Exploration: One-click preset filters for Operating Systems, Relational Databases, AI, and Algorithms.",
-                "Automatic Catalog Bridge: When local stacks have 0 copies, automatically prompts to search in the Open E-Library.",
-                "Direct PDF Downloads: Provides verified direct links to public domain digital volumes."
+                "Public Domain Search: Proxied GET /api/books/open-search queries Open Library's Search API for full-text items.",
+                "Direct IA Resolution: Maps Internet Archive identifiers to direct embed streams (https://archive.org/embed/{ia_id}).",
+                "Auto-Cataloging: Scanned ISBNs auto-resolve metadata (publishers, edition year, authors, cover images).",
+                "Curated Classics: Includes full editions of SICP, Turing (1936), Algorithms, and Computer Organization."
             ],
-            "right_title": "High-Performance Interactive E-Reader",
+            "right_title": "Custom Embedded Reader Experience",
             "right_bullets": [
-                "Fast-Embed Optimization: Embeds clean viewer with ?ui=embed, stripping redundant web wrapper overhead.",
-                "Widescreen Viewing (86vh): Dynamically expands layout to 1550px max width for reading 2-page spreads at a glance.",
-                "Theater / Fullscreen Mode: One-click toggle expands the book reader to 100% viewport dimensions.",
-                "Fallback Streaming: Dual reader tabs support interactive 2-page flipbook mode and fullscreen PDF mode."
+                "Maximized Reading Viewport: Expanded 86vh iframe height and max-w-[1550px] layout.",
+                "Embed URL Parameter: Appending ?ui=embed removes redundant headers for a fast, clean book spread.",
+                "Multi-Modal Formats: Direct toggle between interactive 2-page e-reader canvas and downloadable PDF edition.",
+                "Zero Auth Wall: Free open-access books accessible to guest visitors without mandatory login."
             ]
         },
-        # SLIDE 10: Conclusion, GitHub Deployment & Key Takeaways
+        # SLIDE 10: Summary & Live Demonstration
         {
             "type": "content_2col",
-            "tag": "DEPLOYMENT & PROJECT SUMMARY",
-            "title": "Deployment, Key DBMS Learnings & Verification",
-            "left_title": "Core DBMS Takeaways",
+            "tag": "DEPLOYMENT & PROJECT CONCLUSION",
+            "title": "System Summary & Verification Details",
+            "left_title": "DBMS Academic Requirements Met",
             "left_bullets": [
-                "Domain Realism: Decoupling titles from physical copies is the golden standard for lending systems.",
-                "ACID over Client-Side Checks: Enforcing consistency inside database transactions prevents phantom states.",
-                "Indexes Matter: Partial unique indexes provide bulletproof business constraints without heavy table triggers.",
-                "Full-Stack Synergy: TypeScript end-to-end creates reliable contracts between React UI and the SQL engine."
+                "Normalization: Third Normal Form (3NF) relational design with zero data redundancy.",
+                "ACID Concurrency: Write-Ahead Logging (WAL), atomic transactions, and partial unique indexes.",
+                "Integrity Constraints: ON DELETE CASCADE, CHECK constraints, and non-nullable keys.",
+                "Auditability: Immutable circulation ledger tracking every checkout, return, extension, and fine."
             ],
-            "right_title": "Native Hosting & Reproducibility",
+            "right_title": "Live Production Deployment",
             "right_bullets": [
-                "GitHub Repository: Fully version-controlled codebase hosted at themellowhost/library-lending-system.",
-                "GitHub Pages Live Deployment: Automated GitHub Actions CI/CD workflow deploying frontend directly on git push.",
-                "Dual-Engine Execution: Seamlessly operates connected to local SQLite server OR standalone on GitHub Pages via resilient mock engine.",
-                "Dockerized Environment: Single-command deployment via Docker Compose with volume-mounted databases."
+                "Production App: https://themellowhost.github.io/library-lending-system/",
+                "GitHub Repository: https://github.com/themellowhost/library-lending-system",
+                "Full Persona Testing: One-click switcher between Member (Alex), Librarian (Elena), and Admin (Marcus).",
+                "Dual-Mode Architecture: Full operational capability on static hosting via resilient client fallback engine."
             ]
         }
     ]
 
     for data in slides_data:
         slide = prs.slides.add_slide(blank_slide_layout)
-        
-        # Background fill
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.line.fill.background()
-        
+        bg = slide.background
+        bg.fill.solid()
+        bg.fill.fore_color.rgb = BG_DARK
+
         if data["type"] == "title":
-            bg.fill.solid()
-            bg.fill.fore_color.rgb = BG_DARK
-            
-            # Decorative top bar
+            # Top accent stripe
             top_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(1), Inches(1), Inches(1.5), Inches(0.08))
             top_bar.fill.solid()
             top_bar.fill.fore_color.rgb = ACCENT_BLUE
             top_bar.line.fill.background()
 
-            # Text frame for title
             txBox = slide.shapes.add_textbox(Inches(1), Inches(1.4), Inches(11.3), Inches(4.5))
             tf = txBox.text_frame
             tf.word_wrap = True
@@ -318,25 +281,35 @@ def create_deck():
             p_title.text = data["title"]
             p_title.font.size = Pt(44)
             p_title.font.bold = True
-            p_title.font.color.rgb = TEXT_LIGHT
+            p_title.font.color.rgb = TEXT_MAIN
             p_title.space_after = Pt(16)
 
             p_sub = tf.add_paragraph()
             p_sub.text = data["subtitle"]
             p_sub.font.size = Pt(20)
-            p_sub.font.color.rgb = RGBColor(161, 161, 170)
+            p_sub.font.color.rgb = ACCENT_CYAN
             p_sub.space_after = Pt(36)
 
             p_foot = tf.add_paragraph()
             p_foot.text = data["footer"]
             p_foot.font.size = Pt(12)
-            p_foot.font.color.rgb = RGBColor(113, 113, 122)
+            p_foot.font.color.rgb = TEXT_MUTED
+
+        elif data["type"] == "er_diagram_image":
+            add_header(slide, data["tag"], data["title"], ACCENT_BLUE, TEXT_MAIN)
+
+            # Insert high-resolution rendered dark ER diagram image
+            img_path = data["image_path"]
+            if os.path.exists(img_path):
+                slide.shapes.add_picture(
+                    img_path,
+                    Inches(0.8),
+                    Inches(1.7),
+                    width=Inches(11.73),
+                    height=Inches(5.35)
+                )
 
         elif data["type"] == "content_2col":
-            bg.fill.solid()
-            bg.fill.fore_color.rgb = BG_LIGHT
-
-            # Header Area
             add_header(slide, data["tag"], data["title"], ACCENT_BLUE, TEXT_MAIN)
 
             # Left Card
@@ -372,9 +345,6 @@ def create_deck():
             )
 
         elif data["type"] == "content_3card":
-            bg.fill.solid()
-            bg.fill.fore_color.rgb = BG_LIGHT
-
             add_header(slide, data["tag"], data["title"], ACCENT_BLUE, TEXT_MAIN)
 
             card_w = Inches(3.75)
@@ -402,53 +372,14 @@ def create_deck():
                     muted_color=TEXT_MUTED
                 )
 
-        elif data["type"] == "er_diagram":
-            bg.fill.solid()
-            bg.fill.fore_color.rgb = BG_LIGHT
-
-            add_header(slide, data["tag"], data["title"], ACCENT_BLUE, TEXT_MAIN)
-
-            # 2 rows x 3 columns grid for the 6 entity groups
-            grid_w = Inches(3.75)
-            grid_h = Inches(2.4)
-            gap_x = Inches(0.25)
-            gap_y = Inches(0.25)
-            start_x = Inches(0.8)
-            start_y = Inches(1.8)
-
-            for i, ent in enumerate(data["entities"]):
-                row = i // 3
-                col = i % 3
-                ex = start_x + (col * (grid_w + gap_x))
-                ey = start_y + (row * (grid_h + gap_y))
-
-                add_er_entity_card(
-                    slide,
-                    x=ex,
-                    y=ey,
-                    w=grid_w,
-                    h=grid_h,
-                    card_bg=CARD_BG,
-                    card_border=CARD_BORDER,
-                    table_name=ent["table"],
-                    desc=ent["desc"],
-                    constraint=ent["constraint"],
-                    accent_color=ACCENT_BLUE if i in [0, 3] else (ACCENT_INDIGO if i in [1, 4] else PURPLE),
-                    text_color=TEXT_MAIN,
-                    muted_color=TEXT_MUTED
-                )
-
         elif data["type"] == "content_steps":
-            bg.fill.solid()
-            bg.fill.fore_color.rgb = BG_LIGHT
-
             add_header(slide, data["tag"], data["title"], ACCENT_BLUE, TEXT_MAIN)
 
             step_w = Inches(2.78)
             gap = Inches(0.2)
             start_x = Inches(0.8)
 
-            for i, st in enumerate(data["steps"]):
+            for i, step_info in enumerate(data["steps"]):
                 sx = start_x + (i * (step_w + gap))
                 sy = Inches(1.8)
                 sh = Inches(5.1)
@@ -461,33 +392,34 @@ def create_deck():
                     h=sh,
                     card_bg=CARD_BG,
                     card_border=CARD_BORDER,
-                    step_num=st["num"],
-                    head=st["head"],
-                    desc=st["desc"],
-                    accent_color=ACCENT_BLUE if i == 0 else (ACCENT_INDIGO if i in [1, 2] else EMERALD),
+                    step_num=step_info["num"],
+                    head=step_info["head"],
+                    desc=step_info["desc"],
+                    accent_color=ACCENT_BLUE if i % 2 == 0 else ACCENT_CYAN,
                     text_color=TEXT_MAIN,
                     muted_color=TEXT_MUTED
                 )
 
     output_path = "/Users/akhshatkampassi/Documents/GitHub/DIV-21---B.TECH-ECE-AI-ML----Black-Box/Study/Labs/DBMS/Sem 5 LCA/Library_Lending_System_Presentation.pptx"
     prs.save(output_path)
-    print(f"Presentation saved successfully to: {output_path}")
+    print(f"Dark-theme presentation with ER diagram saved successfully to: {output_path}")
 
 def add_header(slide, tag_text, title_text, accent_color, text_color):
-    txBox = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(11.7), Inches(1.1))
-    tf = txBox.text_frame
-    tf.word_wrap = True
-
-    p_tag = tf.paragraphs[0]
+    tag_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.55), Inches(11.7), Inches(0.4))
+    tf_tag = tag_box.text_frame
+    tf_tag.word_wrap = True
+    p_tag = tf_tag.paragraphs[0]
     p_tag.text = tag_text
     p_tag.font.size = Pt(11)
     p_tag.font.bold = True
     p_tag.font.color.rgb = accent_color
-    p_tag.space_after = Pt(4)
 
-    p_title = tf.add_paragraph()
+    title_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.85), Inches(11.7), Inches(0.8))
+    tf_title = title_box.text_frame
+    tf_title.word_wrap = True
+    p_title = tf_title.paragraphs[0]
     p_title.text = title_text
-    p_title.font.size = Pt(25)
+    p_title.font.size = Pt(26)
     p_title.font.bold = True
     p_title.font.color.rgb = text_color
 
@@ -496,7 +428,7 @@ def add_card_with_bullets(slide, x, y, w, h, card_bg, card_border, header_text, 
     card.fill.solid()
     card.fill.fore_color.rgb = card_bg
     card.line.color.rgb = card_border
-    card.line.width = Pt(1)
+    card.line.width = Pt(1.2)
 
     top_stripe = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, Inches(0.08))
     top_stripe.fill.solid()
@@ -526,7 +458,7 @@ def add_card_with_points(slide, x, y, w, h, card_bg, card_border, title, subtitl
     card.fill.solid()
     card.fill.fore_color.rgb = card_bg
     card.line.color.rgb = card_border
-    card.line.width = Pt(1)
+    card.line.width = Pt(1.2)
 
     top_stripe = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, Inches(0.08))
     top_stripe.fill.solid()
@@ -558,48 +490,12 @@ def add_card_with_points(slide, x, y, w, h, card_bg, card_border, title, subtitl
         p.font.color.rgb = muted_color
         p.space_after = Pt(9)
 
-def add_er_entity_card(slide, x, y, w, h, card_bg, card_border, table_name, desc, constraint, accent_color, text_color, muted_color):
-    card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
-    card.fill.solid()
-    card.fill.fore_color.rgb = card_bg
-    card.line.color.rgb = card_border
-    card.line.width = Pt(1)
-
-    # Accent left badge
-    left_badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, Inches(0.08), h)
-    left_badge.fill.solid()
-    left_badge.fill.fore_color.rgb = accent_color
-    left_badge.line.fill.background()
-
-    tb = slide.shapes.add_textbox(x + Inches(0.25), y + Inches(0.2), w - Inches(0.4), h - Inches(0.3))
-    tf = tb.text_frame
-    tf.word_wrap = True
-
-    p_title = tf.paragraphs[0]
-    p_title.text = table_name
-    p_title.font.size = Pt(13)
-    p_title.font.bold = True
-    p_title.font.color.rgb = text_color
-    p_title.space_after = Pt(6)
-
-    p_desc = tf.add_paragraph()
-    p_desc.text = desc
-    p_desc.font.size = Pt(10)
-    p_desc.font.color.rgb = muted_color
-    p_desc.space_after = Pt(8)
-
-    p_const = tf.add_paragraph()
-    p_const.text = "Constraint: " + constraint
-    p_const.font.size = Pt(9)
-    p_const.font.bold = True
-    p_const.font.color.rgb = accent_color
-
 def add_step_card(slide, x, y, w, h, card_bg, card_border, step_num, head, desc, accent_color, text_color, muted_color):
     card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, w, h)
     card.fill.solid()
     card.fill.fore_color.rgb = card_bg
     card.line.color.rgb = card_border
-    card.line.width = Pt(1)
+    card.line.width = Pt(1.2)
 
     tb = slide.shapes.add_textbox(x + Inches(0.25), y + Inches(0.3), w - Inches(0.5), h - Inches(0.5))
     tf = tb.text_frame
