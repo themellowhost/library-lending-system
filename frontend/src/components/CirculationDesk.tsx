@@ -6,7 +6,7 @@ export const CirculationDesk: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'checkout' | 'return'>('checkout');
 
   // Checkout form state
-  const [memberIdentifier, setMemberIdentifier] = useState('MEM-00101');
+  const [memberIdentifier, setMemberIdentifier] = useState('');
   const [checkoutBarcode, setCheckoutBarcode] = useState('');
   const [loanDays, setLoanDays] = useState(14);
   const [checkoutLoading, setCheckoutLoading] = useState(false);

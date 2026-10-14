@@ -12,7 +12,7 @@ export const MemberDashboard: React.FC = () => {
   // Extension Application Modal state
   const [selectedLoanForExt, setSelectedLoanForExt] = useState<Loan | null>(null);
   const [requestedDays, setRequestedDays] = useState(7);
-  const [extensionReason, setExtensionReason] = useState('Preparing for final semester examinations and project report completion.');
+  const [extensionReason, setExtensionReason] = useState('');
   const [submittingExtension, setSubmittingExtension] = useState(false);
 
   const loadData = async () => {
@@ -36,41 +36,55 @@ export const MemberDashboard: React.FC = () => {
   const handleSubmitExtension = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLoanForExt) return;
-    setMessage(null);
+
+    if (!extensionReason.trim()) {
+      setMessage({ text: 'Please enter a valid reason for requesting an extension.', type: 'error' });
+      return;
+    }
+
+    const targetLoan = selectedLoanForExt;
+    const days = requestedDays;
+    const reason = extensionReason.trim();
+
+    // Immediately close the application modal dialog so the member isn't blocked
+    setSelectedLoanForExt(null);
+    setExtensionReason('');
     setSubmittingExtension(true);
+    setMessage(null);
+
+    // Optimistically update loan status in UI for lightning-fast responsiveness
+    setLoans((prev) =>
+      prev.map((l) =>
+        l.id === targetLoan.id
+          ? {
+              ...l,
+              extension_status: 'pending',
+              extension_requested_days: days,
+              extension_reason: reason,
+              pending_extension_id: 999,
+            }
+          : l
+      )
+    );
 
     try {
-      const res = await api.post(`/loans/${selectedLoanForExt.id}/apply-extension`, {
-        requestedDays: Number(requestedDays),
-        reason: extensionReason.trim(),
+      const res = await api.post(`/loans/${targetLoan.id}/apply-extension`, {
+        requestedDays: Number(days),
+        reason: reason,
       });
 
       setMessage({
-        text: `✓ ${res.data.message || 'Loan extension application submitted to Librarian Desk.'}`,
+        text: `✓ Application Submitted! Your request for +${days} days extension on "${targetLoan.book_title}" is now under review by the librarian.`,
         type: 'success',
       });
 
-      // Update state locally
-      setLoans((prev) =>
-        prev.map((l) =>
-          l.id === selectedLoanForExt.id
-            ? {
-                ...l,
-                pending_extension_id: 999,
-                pending_extension_days: Number(requestedDays),
-                pending_extension_reason: extensionReason.trim(),
-              }
-            : l
-        )
-      );
-
-      setSelectedLoanForExt(null);
       loadData();
     } catch (err: any) {
       setMessage({
         text: err.response?.data?.error || 'Failed to submit extension application',
         type: 'error',
       });
+      loadData();
     } finally {
       setSubmittingExtension(false);
     }
@@ -184,7 +198,7 @@ export const MemberDashboard: React.FC = () => {
                               onClick={() => {
                                 setSelectedLoanForExt(loan);
                                 setRequestedDays(7);
-                                setExtensionReason('Additional coursework and project study requirements.');
+                                setExtensionReason('');
                               }}
                               className="block text-[11px] text-[#2997ff] hover:underline cursor-pointer pt-0.5"
                             >
@@ -207,7 +221,7 @@ export const MemberDashboard: React.FC = () => {
                               onClick={() => {
                                 setSelectedLoanForExt(loan);
                                 setRequestedDays(7);
-                                setExtensionReason('Revised extension request with updated project details.');
+                                setExtensionReason('');
                               }}
                               className="block text-[11px] text-[#2997ff] hover:underline cursor-pointer pt-0.5"
                             >
@@ -220,7 +234,7 @@ export const MemberDashboard: React.FC = () => {
                           onClick={() => {
                             setSelectedLoanForExt(loan);
                             setRequestedDays(7);
-                            setExtensionReason('Academic coursework and final assignment preparation.');
+                            setExtensionReason('');
                           }}
                           className="px-3.5 py-1.5 bg-[#0071e3]/20 hover:bg-[#0071e3]/30 text-[#2997ff] border border-blue-500/30 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
                         >
