@@ -67,6 +67,29 @@ export interface Loan {
   book_title: string;
   isbn: string;
   is_overdue: number;
+  pending_extension_id?: number | null;
+  pending_extension_days?: number | null;
+  pending_extension_reason?: string | null;
+}
+
+export interface LoanExtension {
+  id: number;
+  loan_id: number;
+  requested_days: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  due_at: string;
+  renewal_count: number;
+  barcode: string;
+  location: string;
+  book_title: string;
+  isbn: string;
+  member_id: number;
+  member_number: string;
+  member_name: string;
+  member_email: string;
+  waiting_holds_count: number;
 }
 
 export interface Hold {

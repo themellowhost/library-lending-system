@@ -66,30 +66,72 @@ router.post('/', authenticate, (req: AuthenticatedRequest, res) => {
   }
 
   try {
-    const insertHold = db.prepare(`
-      INSERT INTO holds (book_id, member_id, status)
-      VALUES (?, ?, 'waiting')
-    `).run(bookId, memberId);
+    const holdTx = db.transaction(() => {
+      // Check if an available copy is already on the shelf!
+      const availableCopy = db.prepare(`
+        SELECT id, barcode, location 
+        FROM copies 
+        WHERE book_id = ? AND status = 'available' 
+        LIMIT 1
+      `).get(bookId) as any;
 
-    // Calculate queue position
-    const queuePosition = db.prepare(`
-      SELECT COUNT(*) as pos 
-      FROM holds 
-      WHERE book_id = ? AND status = 'waiting' AND id <= ?
-    `).get(bookId, insertHold.lastInsertRowid) as { pos: number };
+      if (availableCopy) {
+        // Instant reservation for pickup!
+        const pickupExpires = new Date();
+        pickupExpires.setDate(pickupExpires.getDate() + 3); // 3 day pickup window
 
+        const insertHold = db.prepare(`
+          INSERT INTO holds (book_id, member_id, status, ready_at, expires_at, allocated_copy_id)
+          VALUES (?, ?, 'ready_for_pickup', datetime('now'), ?, ?)
+        `).run(bookId, memberId, pickupExpires.toISOString(), availableCopy.id);
+
+        // Mark copy as on_hold
+        db.prepare(`UPDATE copies SET status = 'on_hold' WHERE id = ?`).run(availableCopy.id);
+
+        return {
+          id: insertHold.lastInsertRowid,
+          bookId,
+          bookTitle: book.title,
+          status: 'ready_for_pickup',
+          isImmediateReservation: true,
+          pickupBarcode: availableCopy.barcode,
+          pickupLocation: availableCopy.location,
+          expiresAt: pickupExpires.toISOString(),
+          message: `Item reserved! Ready for pickup at ${availableCopy.location}. Please collect within 3 days.`,
+        };
+      } else {
+        // No available copies right now, place on waiting queue
+        const insertHold = db.prepare(`
+          INSERT INTO holds (book_id, member_id, status)
+          VALUES (?, ?, 'waiting')
+        `).run(bookId, memberId);
+
+        // Calculate queue position
+        const queuePosition = db.prepare(`
+          SELECT COUNT(*) as pos 
+          FROM holds 
+          WHERE book_id = ? AND status = 'waiting' AND id <= ?
+        `).get(bookId, insertHold.lastInsertRowid) as { pos: number };
+
+        return {
+          id: insertHold.lastInsertRowid,
+          bookId,
+          bookTitle: book.title,
+          status: 'waiting',
+          isImmediateReservation: false,
+          queuePosition: queuePosition.pos,
+          message: `Hold placed in queue. You are #${queuePosition.pos} in line. We will notify you when a copy is returned.`,
+        };
+      }
+    });
+
+    const result = holdTx();
     res.status(201).json({
-      message: 'Hold placed successfully',
-      hold: {
-        id: insertHold.lastInsertRowid,
-        bookId,
-        bookTitle: book.title,
-        status: 'waiting',
-        queuePosition: queuePosition.pos,
-      },
+      message: result.message,
+      hold: result,
     });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to place hold', details: err.message });
+    res.status(500).json({ error: 'Failed to place reservation', details: err.message });
   }
 });
 

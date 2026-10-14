@@ -104,17 +104,73 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({ onClose, onSuccess }
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-1.5 ml-1">
-                ISBN Number
-              </label>
+              <div className="flex items-center justify-between mb-1.5 ml-1">
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+                  ISBN Number
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!isbn.trim()) return;
+                    try {
+                      setLoading(true);
+                      setError(null);
+                      const res = await api.get(`/books/lookup-isbn/${isbn.trim()}`);
+                      const b = res.data.book;
+                      if (b) {
+                        setTitle(b.title || title);
+                        setAuthors(b.authors || authors);
+                        if (b.publisher) setPublisher(b.publisher);
+                        if (b.description) setDescription(b.description);
+                      }
+                    } catch (e: any) {
+                      setError(e.response?.data?.error || 'Could not auto-fetch metadata for this ISBN.');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="text-[10px] text-[#2997ff] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  ⚡ Auto-Fetch Info
+                </button>
+              </div>
               <input
                 type="text"
                 required
                 value={isbn}
                 onChange={(e) => setIsbn(e.target.value)}
-                placeholder="e.g. 978-0132350884"
+                placeholder="e.g. 9780132350884"
                 className="w-full px-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3] font-mono"
               />
+              <div className="flex gap-2 mt-1.5 ml-1">
+                <span className="text-[10px] text-[#86868b]">Quick ISBNs:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsbn('9780132350884');
+                    setTitle('Clean Code');
+                    setAuthors('Robert C. Martin');
+                    setPublisher('Prentice Hall');
+                    setDescription('A handbook of agile software craftsmanship.');
+                  }}
+                  className="text-[10px] text-white/60 hover:text-white underline cursor-pointer"
+                >
+                  Clean Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsbn('9780262033848');
+                    setTitle('Introduction to Algorithms (CLRS)');
+                    setAuthors('Thomas H. Cormen, Charles E. Leiserson');
+                    setPublisher('MIT Press');
+                    setDescription('Comprehensive standard textbook on algorithms and data structures.');
+                  }}
+                  className="text-[10px] text-white/60 hover:text-white underline cursor-pointer"
+                >
+                  CLRS
+                </button>
+              </div>
             </div>
 
             <div>

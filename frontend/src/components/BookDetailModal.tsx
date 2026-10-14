@@ -150,10 +150,10 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({ bookId, user, 
             {user?.role === 'member' && (
               <button
                 onClick={handlePlaceHold}
-                className="apple-secondary-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                className="apple-pill-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
               >
                 <Bookmark className="w-3.5 h-3.5" />
-                Place Hold
+                {book.available_copies > 0 ? 'Reserve for Library Pickup' : 'Place Hold (Queue)'}
               </button>
             )}
 

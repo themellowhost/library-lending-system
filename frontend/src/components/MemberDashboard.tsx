@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { Loan, Hold } from '../types';
-import { Clock, Bookmark, AlertTriangle, Check, RotateCw } from 'lucide-react';
+import { Clock, Bookmark, AlertTriangle, Check, RotateCw, FileText, X, Send } from 'lucide-react';
 
 export const MemberDashboard: React.FC = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [holds, setHolds] = useState<Hold[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Extension Application Modal state
+  const [selectedLoanForExt, setSelectedLoanForExt] = useState<Loan | null>(null);
+  const [requestedDays, setRequestedDays] = useState(7);
+  const [extensionReason, setExtensionReason] = useState('Preparing for final semester examinations and project report completion.');
+  const [submittingExtension, setSubmittingExtension] = useState(false);
 
   const loadData = async () => {
     try {
@@ -27,51 +33,46 @@ export const MemberDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const handleRenewLoan = async (loanId: number) => {
+  const handleSubmitExtension = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLoanForExt) return;
     setMessage(null);
+    setSubmittingExtension(true);
+
     try {
-      const res = await api.post(`/loans/${loanId}/renew`);
-      const newDueDateFormatted = new Date(res.data.newDueDate).toLocaleDateString();
+      const res = await api.post(`/loans/${selectedLoanForExt.id}/apply-extension`, {
+        requestedDays: Number(requestedDays),
+        reason: extensionReason.trim(),
+      });
+
       setMessage({
-        text: `✓ ${res.data.message || 'Loan renewed successfully!'} Extended Due Date: ${newDueDateFormatted}`,
+        text: `✓ ${res.data.message || 'Loan extension application submitted to Librarian Desk.'}`,
         type: 'success',
       });
 
-      // Update loans in state immediately
+      // Update state locally
       setLoans((prev) =>
-        prev.map((loan) => {
-          if (loan.id === loanId) {
-            const nextDue = res.data.newDueDate || new Date(new Date(loan.due_at).getTime() + 7 * 86400000).toISOString();
-            return {
-              ...loan,
-              due_at: nextDue,
-              renewal_count: (loan.renewal_count || 0) + 1,
-            };
-          }
-          return loan;
-        })
+        prev.map((l) =>
+          l.id === selectedLoanForExt.id
+            ? {
+                ...l,
+                pending_extension_id: 999,
+                pending_extension_days: Number(requestedDays),
+                pending_extension_reason: extensionReason.trim(),
+              }
+            : l
+        )
       );
+
+      setSelectedLoanForExt(null);
       loadData();
     } catch (err: any) {
-      // Local immediate optimistic renewal fallback for GitHub Pages
-      const target = loans.find((l) => l.id === loanId);
-      if (target && (target.renewal_count || 0) < 2 && target.is_overdue === 0) {
-        const nextDue = new Date(new Date(target.due_at).getTime() + 7 * 86400000);
-        setLoans((prev) =>
-          prev.map((l) =>
-            l.id === loanId
-              ? { ...l, due_at: nextDue.toISOString(), renewal_count: (l.renewal_count || 0) + 1 }
-              : l
-          )
-        );
-        setMessage({
-          text: `✓ Loan successfully renewed for +7 additional days! New Due Date: ${nextDue.toLocaleDateString()}`,
-          type: 'success',
-        });
-        return;
-      }
-
-      setMessage({ text: err.response?.data?.error || 'Renewal failed: maximum renewals reached or item is overdue.', type: 'error' });
+      setMessage({
+        text: err.response?.data?.error || 'Failed to submit extension application',
+        type: 'error',
+      });
+    } finally {
+      setSubmittingExtension(false);
     }
   };
 
@@ -164,16 +165,24 @@ export const MemberDashboard: React.FC = () => {
                       {loan.renewal_count || 0} / 2 used
                     </td>
                     <td className="py-4 px-4">
-                      {loan.is_overdue === 0 && (loan.renewal_count || 0) < 2 ? (
+                      {loan.pending_extension_id ? (
+                        <span className="px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-semibold inline-flex items-center gap-1.5">
+                          <FileText className="w-3 h-3" /> Under Librarian Review
+                        </span>
+                      ) : loan.is_overdue === 0 && (loan.renewal_count || 0) < 2 ? (
                         <button
-                          onClick={() => handleRenewLoan(loan.id)}
-                          className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-medium inline-flex items-center gap-1.5 transition cursor-pointer"
+                          onClick={() => {
+                            setSelectedLoanForExt(loan);
+                            setRequestedDays(7);
+                            setExtensionReason('Academic coursework and final assignment preparation.');
+                          }}
+                          className="px-3.5 py-1.5 bg-[#0071e3]/20 hover:bg-[#0071e3]/30 text-[#2997ff] border border-blue-500/30 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
                         >
-                          <RotateCw className="w-3 h-3" /> Renew (+7d)
+                          <FileText className="w-3 h-3" /> Apply for Extension
                         </button>
                       ) : (
                         <span className="text-xs text-[#86868b] italic">
-                          {loan.is_overdue === 1 ? 'Overdue' : 'Max renewals'}
+                          {loan.is_overdue === 1 ? 'Overdue' : 'Max renewals reached'}
                         </span>
                       )}
                     </td>
@@ -184,6 +193,94 @@ export const MemberDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Extension Application Modal */}
+      {selectedLoanForExt && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="relative bg-[#1d1d1f] rounded-[24px] shadow-2xl max-w-lg w-full border border-white/10 overflow-hidden my-8 text-white p-8">
+            <button
+              onClick={() => setSelectedLoanForExt(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="font-bold text-xl tracking-tight">Loan Extension Application</h2>
+                <p className="text-xs text-[#86868b]">Apply for an approved due date extension from the librarian</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitExtension} className="space-y-4">
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1">
+                <div className="text-[#86868b]">Selected Book:</div>
+                <div className="font-bold text-white text-sm">{selectedLoanForExt.book_title}</div>
+                <div className="text-[11px] text-[#86868b] font-mono">
+                  Barcode: {selectedLoanForExt.barcode} • Current Due Date: {new Date(selectedLoanForExt.due_at).toLocaleDateString()}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-2">
+                  Requested Extension Window
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[7, 14, 21].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setRequestedDays(d)}
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                        requestedDays === d
+                          ? 'bg-[#0071e3] text-white border-blue-400'
+                          : 'bg-white/5 border-white/10 text-white/70 hover:text-white'
+                      }`}
+                    >
+                      +{d} Days
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-2">
+                  Academic Justification / Reason
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={extensionReason}
+                  onChange={(e) => setExtensionReason(e.target.value)}
+                  placeholder="Detail your academic research, project deadlines, or syllabus requirements…"
+                  className="w-full px-4 py-2.5 bg-[#2c2c2e] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setSelectedLoanForExt(null)}
+                  className="px-5 py-2.5 text-xs font-semibold text-[#86868b] hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingExtension}
+                  className="apple-pill-btn px-6 py-2.5 text-xs font-semibold cursor-pointer shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {submittingExtension ? 'Submitting…' : 'Submit Application to Librarian'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Holds & Reservations Queue */}
       <div className="apple-card p-8">

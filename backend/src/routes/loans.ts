@@ -422,15 +422,254 @@ router.get('/my-loans', authenticate, (req: AuthenticatedRequest, res) => {
       CASE 
         WHEN l.returned_at IS NULL AND datetime('now') > datetime(l.due_at) THEN 1 
         ELSE 0 
-      END as is_overdue
+      END as is_overdue,
+      le.id as pending_extension_id,
+      le.requested_days as pending_extension_days,
+      le.reason as pending_extension_reason
     FROM loans l
     JOIN copies c ON l.copy_id = c.id
     JOIN books b ON c.book_id = b.id
+    LEFT JOIN loan_extensions le ON l.id = le.loan_id AND le.status = 'pending'
     WHERE l.member_id = ?
     ORDER BY l.checked_out_at DESC
   `).all(req.user.memberId);
 
   res.json(loans);
+});
+
+// ==========================================
+// 5b. SUBMIT LOAN EXTENSION APPLICATION (MEMBER)
+// ==========================================
+const applyExtensionSchema = z.object({
+  requestedDays: z.number().int().min(1).max(30).default(7),
+  reason: z.string().min(5, 'Reason must be at least 5 characters long'),
+});
+
+router.post('/:id/apply-extension', authenticate, (req: AuthenticatedRequest, res) => {
+  if (!req.user || !req.user.memberId) {
+    res.status(403).json({ error: 'Only registered members can apply for loan extensions' });
+    return;
+  }
+
+  const loanId = Number(req.params.id);
+  const parse = applyExtensionSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Validation failed', details: parse.error.issues });
+    return;
+  }
+
+  const { requestedDays, reason } = parse.data;
+
+  const loan = db.prepare(`
+    SELECT l.*, c.barcode, b.title, b.id as book_id
+    FROM loans l
+    JOIN copies c ON l.copy_id = c.id
+    JOIN books b ON c.book_id = b.id
+    WHERE l.id = ?
+  `).get(loanId) as any;
+
+  if (!loan) {
+    res.status(404).json({ error: 'Loan not found' });
+    return;
+  }
+
+  if (loan.member_id !== req.user.memberId) {
+    res.status(403).json({ error: 'Cannot apply for extension on another member\'s loan' });
+    return;
+  }
+
+  if (loan.returned_at) {
+    res.status(400).json({ error: 'Cannot apply for extension on an already returned book' });
+    return;
+  }
+
+  if (new Date() > new Date(loan.due_at)) {
+    res.status(400).json({ error: 'Item is already overdue and cannot be extended. Please return it to the circulation desk.' });
+    return;
+  }
+
+  if ((loan.renewal_count || 0) >= 2) {
+    res.status(400).json({ error: 'Maximum loan extension limit (2 times) has been reached.' });
+    return;
+  }
+
+  // Check if there is already a pending extension request
+  const existingPending = db.prepare(`
+    SELECT id FROM loan_extensions WHERE loan_id = ? AND status = 'pending'
+  `).get(loanId);
+
+  if (existingPending) {
+    res.status(409).json({ error: 'An extension application is already pending librarian approval for this loan.' });
+    return;
+  }
+
+  try {
+    const insert = db.prepare(`
+      INSERT INTO loan_extensions (loan_id, member_id, requested_days, reason, status)
+      VALUES (?, ?, ?, ?, 'pending')
+    `).run(loanId, req.user.memberId, requestedDays, reason.trim());
+
+    logAuditEvent(
+      'EXTENSION_REQUESTED',
+      'LOAN',
+      loanId,
+      req.user.id,
+      `Member applied for +${requestedDays} days extension on "${loan.title}". Reason: ${reason.trim()}`
+    );
+
+    res.status(201).json({
+      message: 'Loan extension application submitted successfully. Awaiting librarian review.',
+      extension: {
+        id: insert.lastInsertRowid,
+        loanId,
+        requestedDays,
+        reason: reason.trim(),
+        status: 'pending',
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to submit extension application', details: err.message });
+  }
+});
+
+// ==========================================
+// 5c. LIST PENDING EXTENSION APPLICATIONS (LIBRARIAN/ADMIN)
+// ==========================================
+router.get('/extensions/pending', authenticate, authorize(['librarian', 'admin']), (req, res) => {
+  const pending = db.prepare(`
+    SELECT 
+      le.id,
+      le.loan_id,
+      le.requested_days,
+      le.reason,
+      le.status,
+      le.created_at,
+      l.due_at,
+      l.renewal_count,
+      c.barcode,
+      c.location,
+      b.title as book_title,
+      b.isbn,
+      m.id as member_id,
+      m.member_number,
+      u.name as member_name,
+      u.email as member_email,
+      (SELECT COUNT(*) FROM holds h WHERE h.book_id = b.id AND h.status = 'waiting') as waiting_holds_count
+    FROM loan_extensions le
+    JOIN loans l ON le.loan_id = l.id
+    JOIN copies c ON l.copy_id = c.id
+    JOIN books b ON c.book_id = b.id
+    JOIN members m ON le.member_id = m.id
+    JOIN users u ON m.user_id = u.id
+    WHERE le.status = 'pending'
+    ORDER BY le.created_at ASC
+  `).all();
+
+  res.json(pending);
+});
+
+// ==========================================
+// 5d. REVIEW EXTENSION APPLICATION (APPROVE / REJECT)
+// ==========================================
+const reviewExtensionSchema = z.object({
+  decision: z.enum(['approve', 'reject']),
+  reviewNotes: z.string().optional(),
+});
+
+router.post('/extensions/:id/review', authenticate, authorize(['librarian', 'admin']), (req: AuthenticatedRequest, res) => {
+  const extensionId = Number(req.params.id);
+  const parse = reviewExtensionSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: 'Validation failed', details: parse.error.issues });
+    return;
+  }
+
+  const { decision, reviewNotes } = parse.data;
+
+  const reviewTx = db.transaction(() => {
+    const ext = db.prepare(`
+      SELECT le.*, l.due_at, l.renewal_count, b.title as book_title
+      FROM loan_extensions le
+      JOIN loans l ON le.loan_id = l.id
+      JOIN copies c ON l.copy_id = c.id
+      JOIN books b ON c.book_id = b.id
+      WHERE le.id = ?
+    `).get(extensionId) as any;
+
+    if (!ext) {
+      throw new Error('Extension application record not found');
+    }
+
+    if (ext.status !== 'pending') {
+      throw new Error(`Extension application has already been ${ext.status}`);
+    }
+
+    const reviewedAt = new Date().toISOString();
+
+    if (decision === 'approve') {
+      // Calculate new due date (+requestedDays)
+      const currentDue = new Date(ext.due_at);
+      currentDue.setDate(currentDue.getDate() + ext.requested_days);
+      const newDueAt = currentDue.toISOString();
+
+      // Update Loan
+      db.prepare(`
+        UPDATE loans 
+        SET due_at = ?, renewal_count = renewal_count + 1 
+        WHERE id = ?
+      `).run(newDueAt, ext.loan_id);
+
+      // Update Extension Request
+      db.prepare(`
+        UPDATE loan_extensions 
+        SET status = 'approved', reviewed_by_id = ?, review_notes = ?, reviewed_at = ?
+        WHERE id = ?
+      `).run(req.user?.id || null, reviewNotes || 'Approved by librarian', reviewedAt, extensionId);
+
+      logAuditEvent(
+        'EXTENSION_APPROVED',
+        'LOAN',
+        ext.loan_id,
+        req.user?.id,
+        `Approved extension of +${ext.requested_days} days for "${ext.book_title}". New Due: ${newDueAt}`
+      );
+
+      return {
+        extensionId,
+        decision: 'approved',
+        newDueDate: newDueAt,
+        message: `Extension approved. Loan extended by ${ext.requested_days} days.`,
+      };
+    } else {
+      // Reject
+      db.prepare(`
+        UPDATE loan_extensions 
+        SET status = 'rejected', reviewed_by_id = ?, review_notes = ?, reviewed_at = ?
+        WHERE id = ?
+      `).run(req.user?.id || null, reviewNotes || 'Rejected by librarian', reviewedAt, extensionId);
+
+      logAuditEvent(
+        'EXTENSION_REJECTED',
+        'LOAN',
+        ext.loan_id,
+        req.user?.id,
+        `Rejected extension request for "${ext.book_title}". Note: ${reviewNotes || 'No notes'}`
+      );
+
+      return {
+        extensionId,
+        decision: 'rejected',
+        message: 'Extension application rejected.',
+      };
+    }
+  });
+
+  try {
+    const result = reviewTx();
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // ==========================================
@@ -471,6 +710,8 @@ router.get('/reports/circulation', authenticate, authorize(['librarian', 'admin'
       (SELECT COUNT(*) FROM copies WHERE status = 'available') as available_copies,
       (SELECT COUNT(*) FROM copies WHERE status = 'on_loan') as active_loans_count,
       (SELECT COUNT(*) FROM copies WHERE status = 'on_hold') as on_hold_copies,
+      (SELECT COUNT(*) FROM holds WHERE status = 'ready_for_pickup') as ready_for_pickup_count,
+      (SELECT COUNT(*) FROM loan_extensions WHERE status = 'pending') as pending_extensions_count,
       (SELECT COUNT(*) FROM members WHERE status = 'active') as active_members,
       (SELECT COUNT(*) FROM loans WHERE returned_at IS NULL AND datetime('now') > datetime(due_at)) as overdue_loans_count
   `).get();

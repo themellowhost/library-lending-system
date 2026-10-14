@@ -112,6 +112,69 @@ router.get('/open-search', async (req, res) => {
   }
 });
 
+// GET /api/books/lookup-isbn/:isbn - Auto-lookup book metadata by scanned ISBN
+router.get('/lookup-isbn/:isbn', async (req, res) => {
+  const isbn = req.params.isbn.replace(/[^0-9X]/gi, '');
+  if (!isbn || (isbn.length !== 10 && isbn.length !== 13)) {
+    res.status(400).json({ error: 'Invalid ISBN format. Expected 10 or 13 digits.' });
+    return;
+  }
+
+  // 1. Check local catalog first
+  const existingBook = db.prepare(`
+    SELECT b.*, c.name as category_name, GROUP_CONCAT(DISTINCT a.name) as authors
+    FROM books b
+    LEFT JOIN categories c ON b.category_id = c.id
+    LEFT JOIN book_authors ba ON b.id = ba.book_id
+    LEFT JOIN authors a ON ba.author_id = a.id
+    WHERE REPLACE(REPLACE(b.isbn, '-', ''), ' ', '') = ?
+    GROUP BY b.id
+  `).get(isbn) as any;
+
+  if (existingBook) {
+    res.json({
+      source: 'local_catalog',
+      exists: true,
+      book: existingBook,
+    });
+    return;
+  }
+
+  // 2. Fetch from Open Library API
+  try {
+    const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+    if (!olRes.ok) throw new Error('Open Library API unreachable');
+    const olData = await olRes.json() as any;
+    const item = olData[`ISBN:${isbn}`];
+
+    if (!item) {
+      res.status(404).json({ error: `No metadata found for ISBN ${isbn}. Please enter details manually.` });
+      return;
+    }
+
+    const authors = item.authors ? item.authors.map((a: any) => a.name).join(', ') : 'Unknown Author';
+    const publisher = item.publishers && item.publishers.length > 0 ? item.publishers[0].name : '';
+    const publishYear = item.publish_date ? parseInt(item.publish_date.match(/\d{4}/)?.[0] || '2024') : 2024;
+    const coverUrl = item.cover?.large || item.cover?.medium || null;
+
+    res.json({
+      source: 'open_library',
+      exists: false,
+      book: {
+        isbn,
+        title: item.title,
+        authors,
+        publisher,
+        published_year: publishYear,
+        description: item.notes || item.subtitle || `Acquired title for ISBN ${isbn}`,
+        cover_image_url: coverUrl,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to query external ISBN registry', details: err.message });
+  }
+});
+
 // GET /api/books/:id - Detailed book view with individual copy statuses
 router.get('/:id', (req, res) => {
   const bookId = Number(req.params.id);

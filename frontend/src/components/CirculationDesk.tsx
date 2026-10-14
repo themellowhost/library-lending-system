@@ -153,6 +153,30 @@ export const CirculationDesk: React.FC = () => {
                   className="w-full pl-11 pr-4 py-3 bg-[#2c2c2e] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#0071e3] font-mono"
                 />
               </div>
+              <div className="flex gap-2 mt-1.5 ml-1 text-[11px] text-[#86868b]">
+                <span>Quick scan:</span>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutBarcode('BC-DBS-001')}
+                  className="font-mono text-[#2997ff] hover:underline cursor-pointer"
+                >
+                  BC-DBS-001
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutBarcode('BC-DDIA-001')}
+                  className="font-mono text-[#2997ff] hover:underline cursor-pointer"
+                >
+                  BC-DDIA-001
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutBarcode('BC-ARCH-001')}
+                  className="font-mono text-[#2997ff] hover:underline cursor-pointer"
+                >
+                  BC-ARCH-001
+                </button>
+              </div>
             </div>
 
             <div className="w-40">

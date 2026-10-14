@@ -14,6 +14,27 @@ let runtimeBooks = [...MOCK_BOOKS];
 let runtimeMembers = [...MOCK_MEMBERS];
 let runtimeLoans = [...MOCK_LOANS];
 let runtimeHolds = [...MOCK_HOLDS];
+let runtimeExtensions: any[] = [
+  {
+    id: 1,
+    loan_id: 1,
+    requested_days: 7,
+    reason: 'Preparing for DBMS Lab final presentation & schema normalization review',
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    due_at: '2026-10-20T00:00:00.000Z',
+    renewal_count: 0,
+    barcode: 'BC-DBS-001',
+    location: 'Floor 2, Shelf A1',
+    book_title: 'Database System Concepts (7th Edition)',
+    isbn: '978-0078022159',
+    member_id: 1,
+    member_number: 'MEM-00101',
+    member_name: 'Alex Rivera',
+    member_email: 'alex@student.edu',
+    waiting_holds_count: 0,
+  },
+];
 
 // In development or when reverse-proxied, use relative '/api'
 const baseURL = import.meta.env.VITE_API_URL || '/api';
@@ -504,19 +525,131 @@ api.interceptors.response.use(
       };
     }
 
-    // 8. Place Hold
+    // 8. Place Hold / Online Reservation for Pickup
     if (url.includes('/holds') && method === 'post') {
       const { bookId } = data;
       const targetBook = runtimeBooks.find((b) => b.id === Number(bookId));
-      const newHold = {
-        id: runtimeHolds.length + 1,
-        book_id: Number(bookId),
-        status: 'waiting' as const,
-        placed_at: new Date().toISOString(),
-        book_title: targetBook?.title || 'Catalog Title',
-        isbn: targetBook?.isbn || '978-0000000000',
+      
+      // Check if there is an available copy for immediate reservation
+      const availableCopy = targetBook?.copies?.find((c) => c.status === 'available');
+
+      if (availableCopy) {
+        availableCopy.status = 'on_hold';
+        if (targetBook) {
+          targetBook.available_copies = Math.max(0, targetBook.available_copies - 1);
+          targetBook.on_hold_copies = (targetBook.on_hold_copies || 0) + 1;
+        }
+
+        const pickupExpires = new Date(Date.now() + 3 * 86400000).toISOString();
+        const newHold = {
+          id: runtimeHolds.length + 1,
+          book_id: Number(bookId),
+          status: 'ready_for_pickup' as const,
+          placed_at: new Date().toISOString(),
+          ready_at: new Date().toISOString(),
+          expires_at: pickupExpires,
+          book_title: targetBook?.title || 'Catalog Title',
+          isbn: targetBook?.isbn || '978-0000000000',
+          pickup_barcode: availableCopy.barcode,
+          pickup_location: availableCopy.location || 'Floor 1, Stacks',
+        };
+        runtimeHolds = [...runtimeHolds, newHold];
+
+        return {
+          status: 201,
+          statusText: 'Created',
+          headers: {},
+          config: error.config,
+          data: {
+            message: `Reserved successfully! Your book copy (${availableCopy.barcode}) is ready for pickup at ${availableCopy.location || 'Main Stacks'}. Please collect within 3 days.`,
+            hold: {
+              ...newHold,
+              isImmediateReservation: true,
+            },
+          },
+        };
+      } else {
+        const newHold = {
+          id: runtimeHolds.length + 1,
+          book_id: Number(bookId),
+          status: 'waiting' as const,
+          placed_at: new Date().toISOString(),
+          book_title: targetBook?.title || 'Catalog Title',
+          isbn: targetBook?.isbn || '978-0000000000',
+        };
+        runtimeHolds = [...runtimeHolds, newHold];
+
+        return {
+          status: 201,
+          statusText: 'Created',
+          headers: {},
+          config: error.config,
+          data: {
+            message: `Reservation queued. You are #${runtimeHolds.length} in line. We will notify you when a copy becomes available.`,
+            hold: {
+              ...newHold,
+              queuePosition: runtimeHolds.length,
+              isImmediateReservation: false,
+            },
+          },
+        };
+      }
+    }
+
+    // 8d. Loan Extension Application (Member)
+    const applyExtMatch = url.match(/\/loans\/(\d+)\/apply-extension/);
+    if (applyExtMatch && method === 'post') {
+      const loanId = Number(applyExtMatch[1]);
+      const loan = runtimeLoans.find((l) => l.id === loanId);
+      const { requestedDays = 7, reason = 'Academic research and exam preparation' } = data;
+
+      if (!loan) {
+        return Promise.reject({ response: { status: 404, data: { error: 'Loan not found' } } });
+      }
+
+      if (loan.is_overdue === 1) {
+        return Promise.reject({
+          response: { status: 400, data: { error: 'Item is already overdue and cannot be extended. Please return it to the desk.' } },
+        });
+      }
+
+      if ((loan.renewal_count || 0) >= 2) {
+        return Promise.reject({
+          response: { status: 400, data: { error: 'Maximum loan extension limit (2 times) reached.' } },
+        });
+      }
+
+      const existingExt = runtimeExtensions.find((e) => e.loan_id === loanId && e.status === 'pending');
+      if (existingExt) {
+        return Promise.reject({
+          response: { status: 409, data: { error: 'An extension application is already pending librarian approval for this loan.' } },
+        });
+      }
+
+      const newExtension = {
+        id: runtimeExtensions.length + 1,
+        loan_id: loanId,
+        requested_days: Number(requestedDays),
+        reason,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        due_at: loan.due_at,
+        renewal_count: loan.renewal_count || 0,
+        barcode: loan.barcode,
+        location: loan.location,
+        book_title: loan.book_title,
+        isbn: loan.isbn,
+        member_id: 1,
+        member_number: 'MEM-00101',
+        member_name: 'Alex Rivera',
+        member_email: 'alex@student.edu',
+        waiting_holds_count: 0,
       };
-      runtimeHolds = [...runtimeHolds, newHold];
+
+      runtimeExtensions = [...runtimeExtensions, newExtension];
+      loan.pending_extension_id = newExtension.id;
+      loan.pending_extension_days = newExtension.requested_days;
+      loan.pending_extension_reason = newExtension.reason;
 
       return {
         status: 201,
@@ -524,10 +657,144 @@ api.interceptors.response.use(
         headers: {},
         config: error.config,
         data: {
-          message: 'Reservation placed successfully',
-          hold: {
-            ...newHold,
-            queuePosition: runtimeHolds.length,
+          message: 'Loan extension application submitted successfully. Awaiting librarian review.',
+          extension: newExtension,
+        },
+      };
+    }
+
+    // 8e. List Pending Extension Applications (Librarian/Admin)
+    if (url.includes('/loans/extensions/pending') && method === 'get') {
+      const pending = runtimeExtensions.filter((e) => e.status === 'pending');
+      return {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config,
+        data: pending,
+      };
+    }
+
+    // 8f. Review Extension Application (Approve / Reject)
+    const reviewExtMatch = url.match(/\/loans\/extensions\/(\d+)\/review/);
+    if (reviewExtMatch && method === 'post') {
+      const extId = Number(reviewExtMatch[1]);
+      const ext = runtimeExtensions.find((e) => e.id === extId);
+      const { decision, reviewNotes } = data;
+
+      if (!ext) {
+        return Promise.reject({ response: { status: 404, data: { error: 'Extension application not found' } } });
+      }
+
+      ext.status = decision === 'approve' ? 'approved' : 'rejected';
+      const loan = runtimeLoans.find((l) => l.id === ext.loan_id);
+
+      if (decision === 'approve' && loan) {
+        const currentDue = new Date(loan.due_at);
+        currentDue.setDate(currentDue.getDate() + ext.requested_days);
+        loan.due_at = currentDue.toISOString();
+        loan.renewal_count = (loan.renewal_count || 0) + 1;
+        loan.pending_extension_id = null;
+
+        return {
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: error.config,
+          data: {
+            extensionId: extId,
+            decision: 'approved',
+            newDueDate: loan.due_at,
+            message: `Extension approved! Loan extended by ${ext.requested_days} days. New due date: ${new Date(loan.due_at).toLocaleDateString()}`,
+          },
+        };
+      } else {
+        if (loan) loan.pending_extension_id = null;
+        return {
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: error.config,
+          data: {
+            extensionId: extId,
+            decision: 'rejected',
+            message: `Extension application rejected. ${reviewNotes ? `Reason: ${reviewNotes}` : ''}`,
+          },
+        };
+      }
+    }
+
+    // 8g. Lookup ISBN (Scanned Barcode / External metadata)
+    const lookupIsbnMatch = url.match(/\/books\/lookup-isbn\/(.+)/);
+    if (lookupIsbnMatch && method === 'get') {
+      const rawIsbn = decodeURIComponent(lookupIsbnMatch[1]).replace(/[^0-9X]/gi, '');
+      const existing = runtimeBooks.find((b) => b.isbn.replace(/[^0-9X]/gi, '') === rawIsbn);
+
+      if (existing) {
+        return {
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: error.config,
+          data: {
+            source: 'local_catalog',
+            exists: true,
+            book: existing,
+          },
+        };
+      }
+
+      try {
+        const olRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${rawIsbn}&format=json&jscmd=data`);
+        const olData = await olRes.json();
+        const item = olData[`ISBN:${rawIsbn}`];
+
+        if (item) {
+          const authors = item.authors ? item.authors.map((a: any) => a.name).join(', ') : 'Unknown Author';
+          const publisher = item.publishers && item.publishers.length > 0 ? item.publishers[0].name : 'Academic Press';
+          const publishYear = item.publish_date ? parseInt(item.publish_date.match(/\d{4}/)?.[0] || '2024') : 2024;
+          const coverUrl = item.cover?.large || item.cover?.medium || null;
+
+          return {
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config: error.config,
+            data: {
+              source: 'open_library',
+              exists: false,
+              book: {
+                isbn: rawIsbn,
+                title: item.title,
+                authors,
+                publisher,
+                published_year: publishYear,
+                description: item.notes || item.subtitle || `Acquired title for ISBN ${rawIsbn}`,
+                cover_image_url: coverUrl,
+              },
+            },
+          };
+        }
+      } catch (e) {
+        // Fallback simulated metadata
+      }
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config,
+        data: {
+          source: 'open_library',
+          exists: false,
+          book: {
+            isbn: rawIsbn,
+            title: `Engineering Handbook (ISBN ${rawIsbn})`,
+            authors: 'Dr. Arthur Pendelton',
+            publisher: 'Technical Publications',
+            published_year: 2024,
+            description: 'Acquired volume awaiting physical shelf placement.',
+            cover_image_url: null,
           },
         },
       };

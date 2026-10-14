@@ -135,6 +135,28 @@ export function initDatabase() {
     details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- Loan Extension Requests (Member Application & Librarian Approval)
+  CREATE TABLE IF NOT EXISTS loan_extensions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_id INTEGER NOT NULL,
+    member_id INTEGER NOT NULL,
+    requested_days INTEGER NOT NULL DEFAULT 7,
+    reason TEXT NOT NULL,
+    status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) NOT NULL DEFAULT 'pending',
+    reviewed_by_id INTEGER,
+    review_notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME,
+    FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  -- Index: Only one pending extension request per loan
+  CREATE UNIQUE INDEX IF NOT EXISTS unique_pending_extension_per_loan
+  ON loan_extensions (loan_id)
+  WHERE status = 'pending';
   `;
 
   db.exec(schema);

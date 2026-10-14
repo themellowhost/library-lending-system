@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import { Book } from '../types';
+import { Book, LoanExtension } from '../types';
 import {
   BookOpen,
   CheckCircle2,
@@ -13,6 +13,10 @@ import {
   Barcode,
   Layers,
   ArrowRight,
+  FileText,
+  Check,
+  X,
+  PackageCheck,
 } from 'lucide-react';
 
 interface LibrarianDashboardProps {
@@ -28,25 +32,43 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
 }) => {
   const [books, setBooks] = useState<Book[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [pendingExtensions, setPendingExtensions] = useState<LoanExtension[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'on_loan' | 'available'>('all');
   const [search, setSearch] = useState('');
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [booksRes, circRes] = await Promise.all([
+      const [booksRes, circRes, extRes] = await Promise.all([
         api.get('/books'),
         api.get('/loans/reports/circulation').catch(() => null),
+        api.get('/loans/extensions/pending').catch(() => ({ data: [] })),
       ]);
       setBooks(booksRes.data || []);
       if (circRes && circRes.data?.summary) {
         setSummary(circRes.data.summary);
       }
+      setPendingExtensions(extRes.data || []);
     } catch (err) {
       console.error('Failed to load librarian dashboard data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReviewExtension = async (extId: number, decision: 'approve' | 'reject') => {
+    try {
+      const res = await api.post(`/loans/extensions/${extId}/review`, {
+        decision,
+        reviewNotes: decision === 'approve' ? 'Approved by duty librarian' : 'Denied due to high demand',
+      });
+      setReviewMessage(res.data.message || `Extension ${decision}ed successfully.`);
+      setTimeout(() => setReviewMessage(null), 5000);
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || `Failed to ${decision} extension`);
     }
   };
 
@@ -105,8 +127,8 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
       </div>
 
       {/* KPI Metric Tiles */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-6 rounded-2xl apple-card">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+        <div className="p-5 rounded-2xl apple-card">
           <div className="flex items-center justify-between text-[#86868b] mb-2">
             <span className="text-xs font-medium">Total Titles</span>
             <BookOpen className="w-4 h-4 text-white/70" />
@@ -115,33 +137,111 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
           <p className="text-[11px] text-[#86868b] mt-1">Cataloged in database</p>
         </div>
 
-        <div className="p-6 rounded-2xl apple-card">
-          <div className="flex items-center justify-between text-[#86868b] mb-2">
-            <span className="text-xs font-medium">Physical Copies</span>
-            <Layers className="w-4 h-4 text-white/70" />
-          </div>
-          <div className="text-3xl font-black text-white">{totalCopies}</div>
-          <p className="text-[11px] text-[#86868b] mt-1">Total barcodes in circulation</p>
-        </div>
-
-        <div className="p-6 rounded-2xl apple-card border border-emerald-500/20 bg-emerald-500/[0.03]">
+        <div className="p-5 rounded-2xl apple-card border border-emerald-500/20 bg-emerald-500/[0.03]">
           <div className="flex items-center justify-between text-emerald-400 mb-2">
-            <span className="text-xs font-medium">On Shelf (Available)</span>
+            <span className="text-xs font-medium">Shelf Availability</span>
             <CheckCircle2 className="w-4 h-4" />
           </div>
-          <div className="text-3xl font-black text-emerald-400">{availableCopies}</div>
-          <p className="text-[11px] text-[#86868b] mt-1">Ready for checkout</p>
+          <div className="text-3xl font-black text-emerald-400">
+            {totalCopies > 0 ? Math.round((availableCopies / totalCopies) * 100) : 0}%
+          </div>
+          <p className="text-[11px] text-[#86868b] mt-1">{availableCopies} of {totalCopies} copies on shelf</p>
         </div>
 
-        <div className="p-6 rounded-2xl apple-card border border-amber-500/20 bg-amber-500/[0.03]">
+        <div className="p-5 rounded-2xl apple-card border border-amber-500/20 bg-amber-500/[0.03]">
           <div className="flex items-center justify-between text-amber-400 mb-2">
-            <span className="text-xs font-medium">Currently Borrowed</span>
+            <span className="text-xs font-medium">Active Loans</span>
             <Clock className="w-4 h-4" />
           </div>
           <div className="text-3xl font-black text-amber-400">{onLoanCopies}</div>
-          <p className="text-[11px] text-[#86868b] mt-1">Out on active member loan</p>
+          <p className="text-[11px] text-[#86868b] mt-1">Out with borrowers</p>
+        </div>
+
+        <div className="p-5 rounded-2xl apple-card border border-blue-500/20 bg-blue-500/[0.03]">
+          <div className="flex items-center justify-between text-[#2997ff] mb-2">
+            <span className="text-xs font-medium">Ready for Pickup</span>
+            <PackageCheck className="w-4 h-4" />
+          </div>
+          <div className="text-3xl font-black text-[#2997ff]">
+            {summary?.ready_for_pickup_count ?? summary?.activeHolds ?? 0}
+          </div>
+          <p className="text-[11px] text-[#86868b] mt-1">Reserved at hold shelf</p>
+        </div>
+
+        <div className={`p-5 rounded-2xl apple-card border transition ${
+          pendingExtensions.length > 0 ? 'border-purple-500/40 bg-purple-500/[0.06]' : 'border-white/10'
+        }`}>
+          <div className="flex items-center justify-between text-purple-400 mb-2">
+            <span className="text-xs font-medium">Extension Requests</span>
+            <FileText className="w-4 h-4" />
+          </div>
+          <div className="text-3xl font-black text-purple-400">{pendingExtensions.length}</div>
+          <p className="text-[11px] text-[#86868b] mt-1">
+            {pendingExtensions.length > 0 ? 'Needs librarian review' : 'Queue all clear'}
+          </p>
         </div>
       </div>
+
+      {reviewMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+          <Check className="w-4 h-4 shrink-0" />
+          <span>{reviewMessage}</span>
+        </div>
+      )}
+
+      {/* Pending Extension Review Section */}
+      {pendingExtensions.length > 0 && (
+        <div className="apple-card p-6 sm:p-8 border border-purple-500/30 bg-purple-950/[0.08] space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Pending Loan Extension Applications ({pendingExtensions.length})</h2>
+                <p className="text-xs text-[#86868b]">Review member extension reasons and grant or decline loan window prolongations</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="divide-y divide-white/10">
+            {pendingExtensions.map((ext) => (
+              <div key={ext.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1 max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-sm">{ext.book_title}</span>
+                    <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
+                      +{ext.requested_days} Days Requested
+                    </span>
+                  </div>
+                  <div className="text-xs text-[#86868b]">
+                    Borrower: <span className="text-white/80 font-medium">{ext.member_name}</span> ({ext.member_number}) • Barcode: <span className="font-mono text-white/70">{ext.barcode}</span>
+                  </div>
+                  <div className="text-xs text-white/90 bg-white/5 p-2.5 rounded-xl border border-white/10 mt-1">
+                    <span className="text-[#86868b] font-semibold text-[11px] block">Application Reason:</span>
+                    "{ext.reason}"
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleReviewExtension(ext.id, 'approve')}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-md"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Approve (+{ext.requested_days}d)
+                  </button>
+                  <button
+                    onClick={() => handleReviewExtension(ext.id, 'reject')}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-red-500/20 text-[#86868b] hover:text-red-400 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border border-white/10"
+                  >
+                    <X className="w-3.5 h-3.5" /> Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Book Inventory Tracking Table */}
       <div className="space-y-4">
