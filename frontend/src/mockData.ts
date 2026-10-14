@@ -268,7 +268,24 @@ export const MOCK_LOANS: Loan[] = [
   },
 ];
 
-export const MOCK_HOLDS: Hold[] = [];
+export const MOCK_HOLDS: Hold[] = [
+  {
+    id: 1,
+    book_id: 4,
+    member_id: 1,
+    member_name: 'Alex Chen',
+    member_number: 'MEM-00101',
+    status: 'ready_for_pickup',
+    placed_at: '2026-10-14T09:30:00.000Z',
+    ready_at: '2026-10-14T09:30:00.000Z',
+    expires_at: '2026-10-17T09:30:00.000Z',
+    book_title: 'Structure and Interpretation of Computer Programs (SICP)',
+    isbn: '978-0262510875',
+    pickup_barcode: 'BC-SICP-001',
+    pickup_location: 'Floor 1, Shelf D1',
+    allocated_copy_id: 7,
+  },
+];
 
 export const MOCK_OVERDUE_REPORTS: OverdueReportItem[] = [
   {

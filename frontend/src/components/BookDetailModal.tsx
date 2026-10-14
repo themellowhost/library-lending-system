@@ -171,7 +171,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
                 className="apple-pill-btn px-6 py-3 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
               >
                 <Bookmark className="w-3.5 h-3.5" />
-                {book.available_copies > 0 ? 'Reserve for Library Pickup' : 'Place Hold (Queue)'}
+                Reserve (Ready for Pick Up)
               </button>
             )}
 

@@ -103,6 +103,10 @@ export interface LoanExtension {
 export interface Hold {
   id: number;
   book_id: number;
+  member_id?: number;
+  member_name?: string;
+  member_number?: string;
+  allocated_copy_id?: number;
   status: 'waiting' | 'ready_for_pickup' | 'fulfilled' | 'cancelled' | 'expired';
   placed_at: string;
   ready_at?: string;

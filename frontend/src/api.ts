@@ -525,75 +525,146 @@ api.interceptors.response.use(
       };
     }
 
-    // 8. Place Hold / Online Reservation for Pickup
-    if (url.includes('/holds') && method === 'post') {
+    // 8. Place Hold / Online Reservation for Pickup (Exclusively Ready for Pick Up)
+    if (url.includes('/holds') && method === 'post' && !url.includes('/quick-checkout')) {
       const { bookId } = data;
       const targetBook = runtimeBooks.find((b) => b.id === Number(bookId));
       
-      // Check if there is an available copy for immediate reservation
-      const availableCopy = targetBook?.copies?.find((c) => c.status === 'available');
+      let targetCopy = targetBook?.copies?.find((c) => c.status === 'available');
+      if (!targetCopy && targetBook?.copies?.length) {
+        targetCopy = targetBook.copies[0];
+      }
 
-      if (availableCopy) {
-        availableCopy.status = 'on_hold';
+      if (targetCopy) {
+        targetCopy.status = 'on_hold';
         if (targetBook) {
           targetBook.available_copies = Math.max(0, targetBook.available_copies - 1);
           targetBook.on_hold_copies = (targetBook.on_hold_copies || 0) + 1;
         }
-
-        const pickupExpires = new Date(Date.now() + 3 * 86400000).toISOString();
-        const newHold = {
-          id: runtimeHolds.length + 1,
-          book_id: Number(bookId),
-          status: 'ready_for_pickup' as const,
-          placed_at: new Date().toISOString(),
-          ready_at: new Date().toISOString(),
-          expires_at: pickupExpires,
-          book_title: targetBook?.title || 'Catalog Title',
-          isbn: targetBook?.isbn || '978-0000000000',
-          pickup_barcode: availableCopy.barcode,
-          pickup_location: availableCopy.location || 'Floor 1, Stacks',
-        };
-        runtimeHolds = [...runtimeHolds, newHold];
-
-        return {
-          status: 201,
-          statusText: 'Created',
-          headers: {},
-          config: error.config,
-          data: {
-            message: `Reserved successfully! Your book copy (${availableCopy.barcode}) is ready for pickup at ${availableCopy.location || 'Main Stacks'}. Please collect within 3 days.`,
-            hold: {
-              ...newHold,
-              isImmediateReservation: true,
-            },
-          },
-        };
-      } else {
-        const newHold = {
-          id: runtimeHolds.length + 1,
-          book_id: Number(bookId),
-          status: 'waiting' as const,
-          placed_at: new Date().toISOString(),
-          book_title: targetBook?.title || 'Catalog Title',
-          isbn: targetBook?.isbn || '978-0000000000',
-        };
-        runtimeHolds = [...runtimeHolds, newHold];
-
-        return {
-          status: 201,
-          statusText: 'Created',
-          headers: {},
-          config: error.config,
-          data: {
-            message: `Reservation queued. You are #${runtimeHolds.length} in line. We will notify you when a copy becomes available.`,
-            hold: {
-              ...newHold,
-              queuePosition: runtimeHolds.length,
-              isImmediateReservation: false,
-            },
-          },
-        };
       }
+
+      const pickupExpires = new Date(Date.now() + 3 * 86400000).toISOString();
+      const newHold = {
+        id: runtimeHolds.length + 1,
+        book_id: Number(bookId),
+        member_id: 1,
+        member_name: 'Alex Chen',
+        member_number: 'MEM-00101',
+        allocated_copy_id: targetCopy?.id || 1,
+        status: 'ready_for_pickup' as const,
+        placed_at: new Date().toISOString(),
+        ready_at: new Date().toISOString(),
+        expires_at: pickupExpires,
+        book_title: targetBook?.title || 'Catalog Title',
+        isbn: targetBook?.isbn || '978-0000000000',
+        pickup_barcode: targetCopy?.barcode || 'BC-RSV-001',
+        pickup_location: targetCopy?.location || 'Floor 1, Shelf A1',
+      };
+      runtimeHolds = [...runtimeHolds, newHold];
+
+      return {
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config: error.config,
+        data: {
+          message: `Reserved successfully! Your book copy (${newHold.pickup_barcode}) is Ready for Pick Up at ${newHold.pickup_location}. Please collect within 3 days.`,
+          hold: {
+            ...newHold,
+            isImmediateReservation: true,
+          },
+        },
+      };
+    }
+
+    // 8b. Active Requested Holdings (Librarian/Admin)
+    if (url.includes('/holds/active') && method === 'get') {
+      const activeHolds = runtimeHolds.filter(
+        (h) => h.status === 'ready_for_pickup' || h.status === 'waiting'
+      ).map((h) => ({
+        ...h,
+        status: 'ready_for_pickup' as const,
+        member_name: h.member_name || 'Alex Chen',
+        member_number: h.member_number || 'MEM-00101',
+        pickup_barcode: h.pickup_barcode || 'BC-SICP-001',
+        pickup_location: h.pickup_location || 'Floor 1, Shelf D1',
+      }));
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config,
+        data: activeHolds,
+      };
+    }
+
+    // 8c. Quick Checkout for Requested Holding (Librarian/Admin)
+    const quickCheckoutMatch = url.match(/\/holds\/(\d+)\/quick-checkout/);
+    if (quickCheckoutMatch && method === 'post') {
+      const holdId = Number(quickCheckoutMatch[1]);
+      const hold = runtimeHolds.find((h) => h.id === holdId);
+      if (!hold) {
+        return Promise.reject({ response: { status: 404, data: { error: 'Hold request not found' } } });
+      }
+
+      hold.status = 'fulfilled' as const;
+
+      const targetBook = runtimeBooks.find((b) => b.id === hold.book_id);
+      const targetCopy = targetBook?.copies?.find(
+        (c) => c.barcode === hold.pickup_barcode || c.id === hold.allocated_copy_id
+      ) || targetBook?.copies?.[0];
+
+      if (targetCopy) {
+        targetCopy.status = 'on_loan';
+        if (targetBook) {
+          targetBook.on_hold_copies = Math.max(0, (targetBook.on_hold_copies || 0) - 1);
+          targetBook.on_loan_copies = (targetBook.on_loan_copies || 0) + 1;
+        }
+      }
+
+      const futureDue = new Date(Date.now() + 14 * 86400000).toISOString();
+      const newLoan = {
+        id: runtimeLoans.length + 1,
+        copy_id: targetCopy?.id || 1,
+        member_id: hold.member_id || 1,
+        checked_out_at: new Date().toISOString(),
+        due_at: futureDue,
+        returned_at: null,
+        renewal_count: 0,
+        fine_amount: 0,
+        fine_paid: 0,
+        barcode: hold.pickup_barcode || targetCopy?.barcode || 'BC-001',
+        book_title: hold.book_title,
+        book_id: hold.book_id,
+        isbn: hold.isbn,
+        authors: targetBook?.authors || 'Author',
+        member_number: hold.member_number || 'MEM-00101',
+        member_name: hold.member_name || 'Alex Chen',
+        member_email: 'alex.chen@student.edu',
+        location: targetCopy?.location || 'Floor 1, Stacks',
+        is_overdue: 0,
+        days_overdue: 0,
+      };
+      runtimeLoans = [newLoan, ...runtimeLoans];
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config,
+        data: {
+          message: `Quick checkout complete! '${hold.book_title}' issued to ${hold.member_name || 'Alex Chen'}.`,
+          result: {
+            loanId: newLoan.id,
+            holdId: hold.id,
+            bookTitle: hold.book_title,
+            memberName: hold.member_name || 'Alex Chen',
+            barcode: newLoan.barcode,
+            dueAt: futureDue,
+          },
+        },
+      };
     }
 
     // 8d. Loan Extension Application (Member)

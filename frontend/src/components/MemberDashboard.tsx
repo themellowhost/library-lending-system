@@ -346,10 +346,10 @@ export const MemberDashboard: React.FC = () => {
       <div className="apple-card p-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5">
-            <Bookmark className="w-5 h-5 text-[#9d4edd]" />
-            <h2 className="text-lg font-bold text-white">Holds & Reservations ({holds.length})</h2>
+            <Bookmark className="w-5 h-5 text-[#2997ff]" />
+            <h2 className="text-lg font-bold text-white">Online Reservations • Ready for Pick Up ({holds.length})</h2>
           </div>
-          <span className="text-xs text-[#86868b]">Auto-promoted on copy return</span>
+          <span className="text-xs text-[#86868b]">Reserved for collection at library hold shelf</span>
         </div>
 
         {holds.length === 0 ? (
@@ -371,27 +371,25 @@ export const MemberDashboard: React.FC = () => {
                   <tr key={hold.id} className="hover:bg-white/[0.02]">
                     <td className="py-4 px-4 font-semibold text-white">{hold.book_title}</td>
                     <td className="py-4 px-4">
-                      {hold.status === 'ready_for_pickup' && (
-                        <span className="px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold">
-                          Ready for Pickup at Desk!
-                        </span>
-                      )}
-                      {hold.status === 'waiting' && (
-                        <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-medium">
-                          Waiting in Queue
-                        </span>
-                      )}
-                      {hold.status === 'fulfilled' && (
+                      {hold.status === 'ready_for_pickup' || hold.status === 'waiting' ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold inline-flex items-center gap-1.5 w-fit">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Ready for Pick Up
+                          </span>
+                          <span className="text-[10px] text-[#86868b]">
+                            Collect at {hold.pickup_location || 'Circulation Desk'} • Barcode: {hold.pickup_barcode || 'BC-RSV-001'}
+                          </span>
+                        </div>
+                      ) : hold.status === 'fulfilled' ? (
                         <span className="px-2.5 py-1 rounded-full bg-white/5 text-[#86868b] text-xs">
                           Fulfilled
                         </span>
-                      )}
-                      {hold.status === 'cancelled' && (
+                      ) : hold.status === 'cancelled' ? (
                         <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs">
                           Cancelled
                         </span>
-                      )}
-                      {hold.status === 'expired' && (
+                      ) : (
                         <span className="px-2.5 py-1 rounded-full bg-red-500/20 text-red-400 text-xs">
                           Expired
                         </span>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import { Book, LoanExtension } from '../types';
+import { Book, LoanExtension, Hold } from '../types';
 import {
   BookOpen,
   CheckCircle2,
@@ -17,6 +17,7 @@ import {
   Check,
   X,
   PackageCheck,
+  Bookmark,
 } from 'lucide-react';
 
 interface LibrarianDashboardProps {
@@ -33,6 +34,7 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
   const [books, setBooks] = useState<Book[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [pendingExtensions, setPendingExtensions] = useState<LoanExtension[]>([]);
+  const [requestedHolds, setRequestedHolds] = useState<Hold[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'on_loan' | 'available'>('all');
@@ -41,16 +43,18 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
   const loadData = async () => {
     try {
       setLoading(true);
-      const [booksRes, circRes, extRes] = await Promise.all([
+      const [booksRes, circRes, extRes, holdsRes] = await Promise.all([
         api.get('/books'),
         api.get('/loans/reports/circulation').catch(() => null),
         api.get('/loans/extensions/pending').catch(() => ({ data: [] })),
+        api.get('/holds/active').catch(() => ({ data: [] })),
       ]);
       setBooks(booksRes.data || []);
       if (circRes && circRes.data?.summary) {
         setSummary(circRes.data.summary);
       }
       setPendingExtensions(extRes.data || []);
+      setRequestedHolds(holdsRes.data || []);
     } catch (err) {
       console.error('Failed to load librarian dashboard data', err);
     } finally {
@@ -71,6 +75,27 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
       loadData();
     } catch (err: any) {
       alert(err.response?.data?.error || `Failed to ${decision} extension`);
+      loadData();
+    }
+  };
+
+  const handleQuickCheckout = async (hold: Hold) => {
+    // Optimistic UI: immediately remove holding and update counters with zero lag
+    setRequestedHolds((prev) => prev.filter((h) => h.id !== hold.id));
+    setSummary((prev: any) => ({
+      ...prev,
+      ready_for_pickup_count: Math.max(0, (prev?.ready_for_pickup_count || 1) - 1),
+      active_loans_count: (prev?.active_loans_count || 0) + 1,
+    }));
+    setReviewMessage(`Checking out "${hold.book_title}" to ${hold.member_name || 'member'}…`);
+
+    try {
+      const res = await api.post(`/holds/${hold.id}/quick-checkout`);
+      setReviewMessage(res.data.message || `Book successfully issued to ${hold.member_name}!`);
+      setTimeout(() => setReviewMessage(null), 5000);
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to execute quick checkout');
       loadData();
     }
   };
@@ -98,22 +123,20 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
   });
 
   return (
-    <div className="space-y-10 max-w-6xl mx-auto">
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 rounded-3xl apple-card relative overflow-hidden border border-white/10">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[#2997ff] text-xs font-semibold">
-            <Layers className="w-3.5 h-3.5" /> Librarian Control Desk
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Inventory & Circulation Monitor
+    <div className="space-y-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+            <Layers className="w-7 h-7 text-[#0071e3]" />
+            Librarian Workspace
           </h1>
-          <p className="text-xs sm:text-sm text-[#86868b] max-w-xl">
-            Track real-time shelf presence, manage physical item barcodes, and dispatch loan checkout transactions.
+          <p className="text-xs text-[#86868b] mt-1">
+            Real-time circulation metrics, holding checkouts, and loan extension approvals
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
             onClick={onOpenAddBook}
             className="apple-pill-btn px-5 py-2.5 text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20"
@@ -162,11 +185,11 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
 
         <div className="p-5 rounded-2xl apple-card border border-blue-500/20 bg-blue-500/[0.03]">
           <div className="flex items-center justify-between text-[#2997ff] mb-2">
-            <span className="text-xs font-medium">Ready for Pickup</span>
+            <span className="text-xs font-medium">Ready for Pick Up</span>
             <PackageCheck className="w-4 h-4" />
           </div>
           <div className="text-3xl font-black text-[#2997ff]">
-            {summary?.ready_for_pickup_count ?? summary?.activeHolds ?? 0}
+            {requestedHolds.length > 0 ? requestedHolds.length : (summary?.ready_for_pickup_count ?? summary?.activeHolds ?? 0)}
           </div>
           <p className="text-[11px] text-[#86868b] mt-1">Reserved at hold shelf</p>
         </div>
@@ -186,9 +209,59 @@ export const LibrarianDashboard: React.FC<LibrarianDashboardProps> = ({
       </div>
 
       {reviewMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in duration-200">
           <Check className="w-4 h-4 shrink-0" />
           <span>{reviewMessage}</span>
+        </div>
+      )}
+
+      {/* Requested Holdings Section - Ready for Pick Up & Quick Checkout */}
+      {requestedHolds.length > 0 && (
+        <div className="apple-card p-6 sm:p-8 border border-blue-500/30 bg-blue-950/[0.08] space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center text-[#2997ff]">
+                <PackageCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Requested Holdings • Ready for Pick Up ({requestedHolds.length})</h2>
+                <p className="text-xs text-[#86868b]">Reserved books ready at the circulation hold shelf. Click Quick Checkout to immediately issue to borrower.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="divide-y divide-white/10">
+            {requestedHolds.map((hold) => (
+              <div key={hold.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-sm">{hold.book_title}</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Ready for Pick Up
+                    </span>
+                  </div>
+                  <div className="text-xs text-[#86868b]">
+                    Borrower: <span className="text-white/90 font-medium">{hold.member_name || 'Member'}</span> ({hold.member_number || 'ID'}) • Copy Barcode: <span className="font-mono text-white/80 font-bold">{hold.pickup_barcode || 'BC-RSV-001'}</span>
+                  </div>
+                  <div className="text-[11px] text-[#86868b] flex items-center gap-3">
+                    <span>Shelf Location: <strong className="text-white/70">{hold.pickup_location || 'Circulation Hold Shelf'}</strong></span>
+                    <span>•</span>
+                    <span>Reserved: {new Date(hold.placed_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleQuickCheckout(hold)}
+                    className="px-4 py-2 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-blue-500/25"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" /> Quick Checkout
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
